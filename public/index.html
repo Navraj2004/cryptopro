@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Trading Platform</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Roboto', sans-serif;
+            background: url('images/crypto-banner.jpg') no-repeat center center fixed;
+            background-size: cover;
+        }
+
+        .home {
+            text-align: center;
+            color: white;
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.7);
+        }
+
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            margin: 0 1rem;
+            font-weight: bold;
+        }
+
+        .navbar a:hover {
+            text-decoration: underline;
+        }
+
+        .content {
+            margin-top: 10%;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            color: #fff;
+            background-color: #2b6cb0;
+            border: none;
+            border-radius: 5px;
+            text-decoration: none;
+            font-size: 1rem;
+            transition: background 0.3s;
+            margin: 0.5rem;
+        }
+
+        .btn:hover {
+            background-color: #38b2ac;
+        }
+
+        .features, .about, .contact {
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            margin: 2rem auto;
+            width: 80%;
+        }
+
+        .feature-list {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+        }
+
+        .feature {
+            max-width: 300px;
+            margin: 1rem;
+        }
+
+        .feature img {
+            width: 100%;
+            border-radius: 10px;
+        }
+
+        .contact-details {
+            text-align: center;
+            font-size: 1.2rem;
+            line-height: 2rem;
+        }
+
+        .contact-details a {
+            color: #38b2ac;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .contact-details a:hover {
+            text-decoration: underline;
+        }
+
+        footer {
+            text-align: center;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 1rem 0;
+            font-size: 1rem;
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="home">
+        <header class="navbar">
+            <div class="logo">CryptoPro</div>
+            <nav>
+                <a href="#features">Features</a>
+                <a href="#about">About</a>
+                <a href="#contact">Contact</a>
+            </nav>
+        </header>
+        <div class="content">
+            <h1>Welcome to CryptoPro</h1>
+            <p>Your trusted platform for cryptocurrency trading</p>
+            <a href="login.html" class="btn">User Login</a>
+            <a href="loginadmin.html" class="btn">Admin Login</a>
+        </div>
+        <section id="features" class="features">
+            <h2>Features</h2>
+            <div class="feature-list">
+                <div class="feature">
+                    <img src="images/secure-trading.jpg" alt="Secure Trading">
+                    <h3>Secure Trading</h3>
+                    <p>Trade with confidence on our highly secure platform.</p>
+                </div>
+                <div class="feature">
+                    <img src="images/real-time-data.jpg" alt="Real-time Data">
+                    <h3>Real-time Data</h3>
+                    <p>Stay updated with real-time market data and insights.</p>
+                </div>
+                <div class="feature">
+                    <img src="images/portfolio.jpg" alt="Portfolio Management">
+                    <h3>Portfolio Management</h3>
+                    <p>Track and manage your investments seamlessly.</p>
+                </div>
+            </div>
+        </section>
+        <section id="about" class="about">
+            <h2>About Us</h2>
+            <p>At <b>CryptoPro</b>, we believe that the future of finance lies in the hands of innovators and visionaries. Our platform is designed to empower individuals to explore, invest, and grow in the dynamic world of cryptocurrencies with ease and confidence.</p>
+            <p>Founded with the mission to bridge the gap between technology and finance, <b>CryptoPro</b> offers a secure, user-friendly, and data-driven environment for trading and managing digital assets. Whether you're a seasoned trader or a crypto newcomer, our platform equips you with the tools and insights needed to make informed decisions in real time.</p>
+        </section>
+        <section id="contact" class="contact">
+            <h2>Contact Us</h2>
+            <div class="contact-details">
+                <p><strong>Owner Name:</strong> Shreyas Gowda</p>
+                <p><strong>Email:</strong> <a href="mailto:shreyasgowda1901@gmail.com">shreyasgowda1901@gmail.com</a></p>
+                <p><strong>Contact Number:</strong> <a href="tel:+916361943681">+91 6361943681</a></p>
+                <p><strong>Address:</strong> BMSIT&M, Avalahalli, Yelahanka, Bengaluru, Karnataka, India, 560064</p>
+            </div>
+        </section>
+        <footer>
+            &copy; 2025 CryptoPro. All Rights Reserved.
+        </footer>
+    </div>
+</body>
+</html>

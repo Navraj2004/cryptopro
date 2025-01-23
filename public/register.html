@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Trading Platform - Register</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Roboto', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: url('images/crypto-banner.jpg') no-repeat center center fixed;
+            background-size: cover;
+        }
+
+        .register-box {
+            background: rgba(0, 0, 0, 0.85);
+            padding: 2rem;
+            border-radius: 15px;
+            color: white;
+            width: 100%;
+            max-width: 450px; /* Reduced max width */
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.7);
+            text-align: center;
+        }
+
+        .register-box h1 {
+            margin-bottom: 1.5rem;
+            font-size: 1.75rem; /* Slightly larger for visibility */
+            font-weight: bold;
+        }
+
+        .form-control {
+            margin-bottom: 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .form-control::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .form-control:focus {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            outline: none;
+            box-shadow: none;
+        }
+
+        .btn-register {
+            background-color: #38b2ac;
+            color: white;
+            border: none;
+            padding: 0.85rem;
+            width: 100%;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: background 0.3s;
+        }
+
+        .btn-register:hover {
+            background-color: #319795;
+        }
+
+        .back-to-login {
+            display: block;
+            text-align: center;
+            margin-top: 1rem;
+            color: #cbd5e0;
+            text-decoration: none;
+        }
+
+        .back-to-login:hover {
+            color: #a0aec0;
+        }
+
+        .password-guideline {
+            color: #e63946; /* Bright red for visibility */
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        .modal-content {
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="register-box">
+        <h1>Create Your Account</h1>
+        <form id="registerForm">
+            <!-- Name -->
+            <div class="mb-3">
+                <input type="text" class="form-control" id="name" name="name" placeholder="Full Name" required>
+            </div>
+            <!-- Contact Number -->
+            <div class="mb-3">
+                <input type="tel" class="form-control" id="contactNumber" name="contactNumber" placeholder="Contact Number" required pattern="[0-9]{10}" title="Enter a valid 10-digit phone number">
+            </div>
+            <!-- PAN Card Number -->
+            <div class="mb-3">
+                <input type="text" class="form-control" id="pancardNumber" name="pancardNumber" placeholder="PAN Card Number" required pattern="[A-Z]{5}[0-9]{4}[A-Z]{1}" title="Enter a valid PAN number (ABCDE1234F)">
+            </div>
+            <!-- Upload PAN Card -->
+            <div class="mb-3">
+                <label for="pancardFile" class="form-label">Upload PAN Card (JPG only, max size: 1MB)</label>
+                <input type="file" class="form-control" id="pancardFile" name="pancardFile" accept="image/jpeg" required>
+            </div>
+            <!-- Date of Birth -->
+            <div class="mb-3">
+                <input type="date" class="form-control" id="dob" name="dob" required>
+            </div>
+            <!-- Email -->
+            <div class="mb-3">
+                <input type="email" class="form-control" id="email" name="email" placeholder="Email Address" required>
+            </div>
+            <!-- Password -->
+            <div class="mb-3">
+                <input type="password" id="password" class="form-control" name="password" placeholder="Password" required minlength="8">
+                <small class="form-text password-guideline">
+                    Password must be at least 8 characters long, contain at least one uppercase letter, one special character, and one number.
+                </small>
+            </div>
+            <!-- Confirm Password -->
+            <div class="mb-3">
+                <input type="password" id="confirmPassword" class="form-control" placeholder="Confirm Password" required minlength="8">
+            </div>
+            <!-- Submit Button -->
+            <button type="submit" class="btn btn-register">Register</button>
+            <!-- Back to Login -->
+            <a href="login.html" class="back-to-login">Back to Login</a>
+        </form>
+    </div>
+
+    <!-- Success Modal -->
+    <div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="successModalLabel">Registration Successful</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Congratulations! Your account has been successfully created. You will now be redirected to the login page.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" id="redirectLogin">Go to Login</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault(); // Prevent default form submission
+
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const pancardFile = document.getElementById('pancardFile').files[0];
+
+            // Validate file size and type
+            if (pancardFile) {
+                const maxSize = 1 * 1024 * 1024; // 1MB
+                if (pancardFile.size > maxSize) {
+                    alert("PAN card file size must not exceed 1MB.");
+                    return;
+                }
+                if (!pancardFile.type.includes("jpeg")) {
+                    alert("Only JPG format is allowed for PAN card upload.");
+                    return;
+                }
+            } else {
+                alert("Please upload your PAN card.");
+                return;
+            }
+
+            // Validate password
+            const passwordRegex = /^(?=.*[A-Z])(?=.*[!@#$%^&*])(?=.*\d).{8,}$/;
+            if (!passwordRegex.test(password)) {
+                alert("Password must be at least 8 characters long, contain at least one uppercase letter, one special character, and one number.");
+                return;
+            }
+
+            // Check if passwords match
+            if (password !== confirmPassword) {
+                alert("Passwords do not match. Please re-enter.");
+                return;
+            }
+
+            // Prepare form data
+            const formData = new FormData();
+            formData.append('name', document.getElementById('name').value);
+            formData.append('contactNumber', document.getElementById('contactNumber').value);
+            formData.append('pancardNumber', document.getElementById('pancardNumber').value);
+            formData.append('dob', document.getElementById('dob').value);
+            formData.append('email', document.getElementById('email').value);
+            formData.append('password', password);
+            formData.append('pancardFile', pancardFile);
+
+            try {
+                // Send POST request to the server
+                const response = await fetch('http://localhost:3000/register', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (response.ok) {
+                    const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+                    successModal.show();
+                    document.getElementById('redirectLogin').addEventListener('click', () => {
+                        window.location.href = 'login.html';
+                    });
+                    setTimeout(() => {
+                        window.location.href = 'login.html'; // Redirect to login page
+                    }, 5000);
+                } else {
+                    const errorMessage = await response.text();
+                    alert(`Registration failed: ${errorMessage}`);
+                }
+            } catch (error) {
+                console.error('Error during registration:', error);
+                alert('An error occurred during registration. Please try again.');
+            }
+        });
+    </script>
+</body>
+</html>

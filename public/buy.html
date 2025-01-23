@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buy Cryptocurrency</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Roboto', sans-serif;
+            background-color: #f8f9fa;
+            padding: 2rem;
+        }
+
+        header {
+            margin-bottom: 2rem;
+        }
+
+        .container {
+            max-width: 600px;
+        }
+
+        .form-control[readonly] {
+            background-color: #e9ecef;
+        }
+
+        .modal-header {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .modal-body {
+            background-color: #f1f8ff;
+        }
+    </style>
+</head>
+<body>
+    <header class="bg-dark text-white text-center py-3">
+        <h1>Buy Cryptocurrency</h1>
+    </header>
+
+    <div class="container mt-5">
+        <form id="buyForm">
+            <div class="mb-3">
+                <label for="emailId" class="form-label">Email ID</label>
+                <input type="email" id="emailId" class="form-control" readonly>
+            </div>
+            <div class="mb-3">
+                <label for="cryptoName" class="form-label">Coin</label>
+                <input type="text" id="cryptoName" class="form-control" readonly>
+            </div>
+            <div class="mb-3">
+                <label for="cryptoPrice" class="form-label">Price per Unit ($)</label>
+                <input type="text" id="cryptoPrice" class="form-control" readonly>
+            </div>
+            <div class="mb-3">
+                <label for="quantity" class="form-label">Enter Quantity</label>
+                <input type="number" id="quantity" class="form-control" min="1" required oninput="updateTotalPrice()">
+            </div>
+            <div class="mb-3">
+                <label for="totalPrice" class="form-label">Total Price ($)</label>
+                <input type="text" id="totalPrice" class="form-control" readonly>
+            </div>
+            <button type="button" class="btn btn-primary w-100" onclick="confirmPurchase()">Buy Now</button>
+        </form>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="successModalLabel">Purchase Successful</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" onclick="redirectToDashboard()"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Your purchase was completed successfully!</p>
+                    <p><strong>Coin:</strong> <span id="modalCryptoName"></span></p>
+                    <p><strong>Quantity:</strong> <span id="modalQuantity"></span></p>
+                    <p><strong>Total Price ($):</strong> <span id="modalTotalPrice"></span></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="redirectToDashboard()">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const cryptoName = urlParams.get('coin'); // Full name like "Bitcoin"
+
+        const coinSymbols = {
+            Bitcoin: 'BTC',
+            Ethereum: 'ETH',
+            Dogecoin: 'DOGE',
+            Ripple: 'XRP',
+            Cardano: 'ADA',
+            Solana: 'SOL',
+            Polkadot: 'DOT',
+            Litecoin: 'LTC',
+        };
+
+        async function fetchLivePrice() {
+            const cryptoSymbol = coinSymbols[cryptoName];
+
+            if (!cryptoSymbol) {
+                alert(`Unknown coin: ${cryptoName}`);
+                document.getElementById('cryptoPrice').value = "N/A";
+                return;
+            }
+
+            try {
+                const response = await fetch(`http://localhost:3000/crypto-price?coin=${cryptoSymbol}`);
+                const data = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('cryptoName').value = cryptoName;
+                    document.getElementById('cryptoPrice').value = data.price.toFixed(2);
+                } else {
+                    alert(data.message || 'Failed to fetch live price.');
+                    document.getElementById('cryptoPrice').value = "N/A";
+                }
+            } catch (err) {
+                console.error('Error fetching live price:', err);
+                alert('An error occurred while fetching live price.');
+                document.getElementById('cryptoPrice').value = "N/A";
+            }
+        }
+
+        async function fetchUserDetails() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('Please log in to access this page.');
+                window.location.href = 'login.html';
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:3000/user', {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+
+                if (!response.ok) {
+                    throw new Error('User details fetch failed');
+                }
+
+                const data = await response.json();
+                document.getElementById('emailId').value = data.user.email;
+            } catch (err) {
+                console.error('Error fetching user details:', err);
+                alert('Could not load user details. Please try again later.');
+                window.location.href = 'login.html';
+            }
+        }
+
+        function updateTotalPrice() {
+            const quantity = Math.max(0, parseFloat(document.getElementById('quantity').value) || 0);
+            const cryptoPrice = parseFloat(document.getElementById('cryptoPrice').value);
+            const totalPrice = (quantity * cryptoPrice).toFixed(2);
+            document.getElementById('totalPrice').value = totalPrice;
+        }
+
+        async function confirmPurchase() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('Please log in to make a purchase.');
+                window.location.href = 'login.html';
+                return;
+            }
+
+            const quantity = parseFloat(document.getElementById('quantity').value);
+            const totalPrice = parseFloat(document.getElementById('totalPrice').value);
+
+            if (!quantity || quantity <= 0) {
+                alert('Please enter a valid quantity.');
+                return;
+            }
+
+            const purchaseData = {
+                coin: cryptoName,
+                quantity,
+                totalPrice,
+            };
+
+            try {
+                const response = await fetch('http://localhost:3000/buy', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                    },
+                    body: JSON.stringify(purchaseData),
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    document.getElementById('modalCryptoName').textContent = cryptoName;
+                    document.getElementById('modalQuantity').textContent = quantity;
+                    document.getElementById('modalTotalPrice').textContent = totalPrice.toFixed(2);
+
+                    const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+                    successModal.show();
+                } else {
+                    alert(result.message || 'Failed to complete the purchase.');
+                }
+            } catch (err) {
+                console.error('Error during purchase:', err);
+                alert('An error occurred while processing your purchase.');
+            }
+        }
+
+        function redirectToDashboard() {
+            window.location.href = 'dashboard.html';
+        }
+
+        window.onload = () => {
+            fetchLivePrice();
+            fetchUserDetails();
+        };
+    </script>
+</body>
+</html>
