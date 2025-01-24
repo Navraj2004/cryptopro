@@ -7,7 +7,6 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const axios = require('axios');
-const path = require('path');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -17,17 +16,13 @@ const apiKey = process.env.CMC_API_KEY; // Crypto API key
 const mongodbUri = process.env.MONGODB_URI;
 
 
+
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
 
 app.use(express.json());
 const session = require('express-session');
-
-// Serve static files from the "../public" folder
-app.use(express.static(path.join(__dirname, '../public')));
-
-
 // Use session middleware
 app.use(
     session({
@@ -171,7 +166,7 @@ app.post('/register', upload.single('pancardFile'), async (req, res) => {
   }
 });
 
-
+// Login Route
 // Login Route
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
@@ -309,6 +304,15 @@ app.post('/sell', authenticateUser, async (req, res) => {
       res.status(500).json({ success: false, message: 'Internal server error.' });
   }
 });
+
+
+
+
+
+
+
+
+
 
 // Wallet Route
 app.get('/wallet', authenticateUser, async (req, res) => {
@@ -471,6 +475,6 @@ app.use((req, res) => {
 });
 
 // Start the Server
-app.listen(port, () => {
-    console.log(`Server running at http://localhost:${port}`);
+app.listen(port, '0.0.0.0', () => {
+  console.log(`Server running at http://0.0.0.0:${port}`);
 });
