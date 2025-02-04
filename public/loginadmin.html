@@ -115,26 +115,27 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
     })
-    .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Failed to login');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.success) {
-                        $('#loginSuccessModal').modal('show'); // Show modal on success
-                    } else {
-                        $errorMsg.text(data.message).attr('aria-hidden', 'false');
-                    }
-                })
-                .catch(err => {
-                    console.error(err);
-                    $errorMsg.text('An error occurred while logging in.').attr('aria-hidden', 'false');
-                })
-                .finally(() => {
-                    $loginButton.prop('disabled', false).text('Login');
-                });
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            $('#loginSuccessModal').modal('show'); // Show success modal
+        } else {
+            if (data.message === "Incorrect password") {
+                $errorMsg.text("Incorrect password, please try again.").attr('aria-hidden', 'false');
+            } else if (data.message === "User not found") {
+                $errorMsg.text("No admin found with this email.").attr('aria-hidden', 'false');
+            } else {
+                $errorMsg.text("Login failed. Please try again.").attr('aria-hidden', 'false');
+            }
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        $errorMsg.text('An error occurred while logging in.').attr('aria-hidden', 'false');
+    })
+    .finally(() => {
+        $loginButton.prop('disabled', false).text('Login');
+    });
 });
 
     </script>
