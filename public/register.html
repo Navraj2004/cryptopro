@@ -101,16 +101,16 @@
             </div>
             <!-- Contact Number -->
             <div class="mb-3">
-                <input type="tel" class="form-control" id="contactNumber" name="contactNumber" placeholder="Contact Number" required pattern="[0-9]{10}" title="Enter a valid 10-digit phone number">
+                <input type="tel" class="form-control" id="contactNumber" name="Contact Number" placeholder="Contact Number" required pattern="[0-9]{10}" title="Enter a valid 10-digit phone number">
             </div>
             <!-- ID Card Number -->
             <div class="mb-3">
-                <input type="text" class="form-control" id="idcardNumber" name="idcardNumber" placeholder="ID Card Number" required>
+                <input type="text" class="form-control" id="idProofNumber" name="idProofNumber" placeholder="ID Proof Number" required>
             </div>
             <!-- Upload ID Card -->
             <div class="mb-3">
-                <label for="idcardFile" class="form-label">Upload ID Card (JPG only, max size: 1MB)</label>
-                <input type="file" class="form-control" id="idcardFile" name="idcardFile" accept="image/jpeg" required>
+                <label for="idProofFile" class="form-label">Upload ID Card (JPG only, max size: 1MB)</label>
+                <input type="file" class="form-control" id="idProofFile" name="idProofFile" accept="image/jpeg" required>
             </div>
             <!-- Date of Birth -->
             <div class="mb-3">
@@ -184,24 +184,24 @@
         
                 const name = document.getElementById("name").value.trim();
                 const contactNumber = document.getElementById("contactNumber").value.trim();
-                const idProofNumber = document.getElementById("idProofNumberr").value.trim();
+                const idProofNumber = document.getElementById("idProofNumber").value.trim();
                 const dob = document.getElementById("dob").value.trim();
                 const email = document.getElementById("email").value.trim();
                 const password = document.getElementById("password").value;
                 const confirmPassword = document.getElementById("confirmPassword").value;
-                const idcardFile = document.getElementById("idcardFile").files[0];
+                const idProofFile = document.getElementById("idProofFile").files[0];
         
                 // Validate ID card file
-                if (idcardFile.size > 1 * 1024 * 1024) {
+                if (idProofFile.size > 1 * 1024 * 1024) {
                     alert("ID card file size must not exceed 1MB.");
                     return;
                 }
                 const maxSize = 1 * 1024 * 1024; // 1MB
-                if (idcardFile.size > maxSize) {
+                if (idProofFile.size > maxSize) {
                     showErrorModal("ID card file size must not exceed 1MB.");
                     return;
                 }
-                if (!idcardFile.type.includes("jpeg") && !idcardFile.type.includes("jpg")) {
+                if (!idProofFile.type.includes("jpeg") && !idProofFile.type.includes("jpg")) {
                     showErrorModal("Only JPG format is allowed for ID card upload.");
                     return;
                 }
@@ -227,7 +227,7 @@
                 formData.append("dob", dob);
                 formData.append("email", email);
                 formData.append("password", password);
-                formData.append("idcardFile", idcardFile);
+                formData.append("idProofFile", idProofFile);
         
                 try {
                     // Send POST request to the server

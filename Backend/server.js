@@ -199,6 +199,36 @@ app.post('/login', async (req, res) => {
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
+// Delete user by email (and all associated data)
+app.delete("/admin/users/:email", async (req, res) => {
+  try {
+      const { email } = req.params;
+
+      // Find and delete user
+      const deletedUser = await User.findOneAndDelete({ email });
+
+      if (!deletedUser) {
+          return res.status(404).json({ success: false, message: "User not found" });
+      }
+
+      res.json({
+          success: true,
+          message: "User deleted successfully",
+          deletedUser: {
+              name: deletedUser.name,
+              email: deletedUser.email,
+              contactNumber: deletedUser.contactNumber,
+              idProofNumber: deletedUser.idProofNumber,
+              dob: deletedUser.dob,
+              idProofImage: deletedUser.idProofImage ? deletedUser.idProofImage.toString("base64") : null, // Convert image buffer to Base64
+              purchases: deletedUser.purchases,
+          },
+      });
+  } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({ success: false, message: "Internal server error" });
+  }
+});
 
 
 // Route to fetch ID proof image by user ID
