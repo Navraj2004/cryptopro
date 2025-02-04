@@ -404,12 +404,6 @@ app.get('/crypto-price', async (req, res) => {
 });
 
 
-
-
-const express = require("express");
-const bcrypt = require("bcryptjs");
-const Admin = require("./models/Admin"); // Ensure correct model import
-
 // Admin Login Route
 app.post('/api/admin/login', async (req, res) => {
     const { email, password } = req.body;
