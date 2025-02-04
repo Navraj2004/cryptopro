@@ -70,11 +70,11 @@ const Admin = mongoose.model('Admin', adminSchema);
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   contactNumber: { type: String, required: true },
-  pancardNumber: { type: String, required: true },
+  idProofNumber: { type: String, required: true },
   dob: { type: Date, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  pancardImage: { type: Buffer, required: true },
+  idProofImage: { type: Buffer, required: true },
   purchases: [
     {
       coin: { type: String, required: true },
@@ -126,11 +126,11 @@ app.get('/admin/config', (req, res) => {
 
 
 // Registration Route
-app.post('/register', upload.single('pancardFile'), async (req, res) => {
-  const { name, contactNumber, pancardNumber, dob, email, password } = req.body;
+app.post('/register', upload.single('idProofFile'), async (req, res) => {
+  const { name, contactNumber, idProofNumber, dob, email, password } = req.body;
 
   if (!req.file || !req.file.buffer) {
-    return res.status(400).send('PAN card image is required and must be in JPG format.');
+    return res.status(400).send('ID proof image is required and must be in JPG format.');
   }
 
   // Validate password complexity
@@ -151,11 +151,11 @@ app.post('/register', upload.single('pancardFile'), async (req, res) => {
     const user = new User({
       name,
       contactNumber,
-      pancardNumber,
+      idProofNumber,
       dob,
       email,
       password: hashedPassword,
-      pancardImage: req.file.buffer,
+      idProofImage: req.file.buffer,
     });
 
     await user.save();
@@ -201,18 +201,18 @@ app.post('/login', async (req, res) => {
 });
 
 
-// Route to fetch PAN card image by user ID
-app.get('/get-pancard/:id', async (req, res) => {
+// Route to fetch ID proof image by user ID
+app.get('/get-idproof/:id', async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
-    if (!user || !user.pancardImage) {
-      return res.status(404).send('PAN card image not found');
+    if (!user || !user.idProofImage) {
+      return res.status(404).send('ID proof image not found');
     }
     res.set('Content-Type', 'image/jpeg');
-    res.send(user.pancardImage);
+    res.send(user.idProofImage);
   } catch (err) {
-    console.error('Error fetching PAN card image:', err);
-    res.status(500).send('Failed to fetch PAN card image');
+    console.error('Error fetching ID proof image:', err);
+    res.status(500).send('Failed to fetch ID proof image');
   }
 });
 
@@ -305,15 +305,6 @@ app.post('/sell', authenticateUser, async (req, res) => {
   }
 });
 
-
-
-
-
-
-
-
-
-
 // Wallet Route
 app.get('/wallet', authenticateUser, async (req, res) => {
   try {
@@ -384,31 +375,7 @@ app.get('/crypto-price', async (req, res) => {
 
 
 
-// Admin Registration Route (One-time setup)
-app.post('/api/admin/register', async (req, res) => {
-  const { email, password } = req.body;
 
-  if (!email || !password) {
-    return res.status(400).json({ success: false, message: 'Email and password are required.' });
-  }
-
-  try {
-    const existingAdmin = await Admin.findOne({ email });
-    if (existingAdmin) {
-      return res.status(400).json({ success: false, message: 'Admin already exists.' });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const admin = new Admin({ email, password: hashedPassword });
-    await admin.save();
-
-    res.status(201).json({ success: true, message: 'Admin registered successfully.' });
-  } catch (err) {
-    console.error('Error registering admin:', err);
-    res.status(500).json({ success: false, message: 'Internal server error.' });
-  }
-});
 // Admin Login Route
 app.post('/api/admin/login', async (req, res) => {
   const { email, password } = req.body;
@@ -438,19 +405,18 @@ app.post('/api/admin/login', async (req, res) => {
 
   
   
-
 // Admin Route to Fetch All Users
 app.get('/admin/users', authenticateAdmin, async (req, res) => {
   try {
     const users = await User.find({}, { password: 0 }); // Exclude password field from the response
 
-    // Map through users and include pancardImage as a Base64-encoded string
+    // Map through users and include idProofImage as a Base64-encoded string
     const userData = users.map((user) => {
       const userObj = user.toObject(); // Convert Mongoose Document to plain object
       return {
         ...userObj,
-        pancardImage: user.pancardImage
-          ? `data:image/jpeg;base64,${Buffer.from(user.pancardImage).toString('base64')}` // Encode image
+        idProofImage: user.idProofImage
+          ? `data:image/jpeg;base64,${Buffer.from(user.idProofImage).toString('base64')}` // Encode image
           : null,
       };
     });
@@ -476,5 +442,5 @@ app.use((req, res) => {
 
 // Start the Server
 app.listen(port, '0.0.0.0', () => {
-  console.log(`Server running at http://0.0.0.0:${port}`);
+    console.log(`Server running at http://0.0.0.0:${port}`);
 });

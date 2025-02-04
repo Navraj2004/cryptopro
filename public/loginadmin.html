@@ -92,26 +92,30 @@
 
     <script>
         $('#loginForm').on('submit', function (e) {
-            e.preventDefault();
+    e.preventDefault();
 
-            const email = $('#email').val().trim();
-            const password = $('#password').val().trim();
-            const $errorMsg = $('#errorMsg');
-            const $loginButton = $('#loginButton');
+    const API_URL = "https://cryptopro.onrender.com/api/admin/login"; // Updated API endpoint
+    const email = $('#email').val().trim();
+    const password = $('#password').val().trim();
+    const $errorMsg = $('#errorMsg');
+    const $loginButton = $('#loginButton');
 
-            if (!email || !password) {
-                $errorMsg.text('Email and password are required').attr('aria-hidden', 'false');
-                return;
-            }
+    // Clear previous error message
+    $errorMsg.text('').attr('aria-hidden', 'true');
 
-            $loginButton.prop('disabled', true).text('Logging in...');
+    if (!email || !password) {
+        $errorMsg.text('Email and password are required').attr('aria-hidden', 'false');
+        return;
+    }
 
-            fetch('http://localhost:3000/api/admin/login', { // Use the correct backend API URL
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
-            })
-                .then(response => {
+    $loginButton.prop('disabled', true).text('Logging in...');
+
+    fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+    })
+    .then(response => {
                     if (!response.ok) {
                         throw new Error('Failed to login');
                     }
@@ -131,7 +135,8 @@
                 .finally(() => {
                     $loginButton.prop('disabled', false).text('Login');
                 });
-        });
+});
+
     </script>
 
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"></script>

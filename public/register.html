@@ -103,14 +103,14 @@
             <div class="mb-3">
                 <input type="tel" class="form-control" id="contactNumber" name="contactNumber" placeholder="Contact Number" required pattern="[0-9]{10}" title="Enter a valid 10-digit phone number">
             </div>
-            <!-- PAN Card Number -->
+            <!-- ID Card Number -->
             <div class="mb-3">
-                <input type="text" class="form-control" id="pancardNumber" name="pancardNumber" placeholder="PAN Card Number" required pattern="[A-Z]{5}[0-9]{4}[A-Z]{1}" title="Enter a valid PAN number (ABCDE1234F)">
+                <input type="text" class="form-control" id="idcardNumber" name="idcardNumber" placeholder="ID Card Number" required>
             </div>
-            <!-- Upload PAN Card -->
+            <!-- Upload ID Card -->
             <div class="mb-3">
-                <label for="pancardFile" class="form-label">Upload PAN Card (JPG only, max size: 1MB)</label>
-                <input type="file" class="form-control" id="pancardFile" name="pancardFile" accept="image/jpeg" required>
+                <label for="idcardFile" class="form-label">Upload ID Card (JPG only, max size: 1MB)</label>
+                <input type="file" class="form-control" id="idcardFile" name="idcardFile" accept="image/jpeg" required>
             </div>
             <!-- Date of Birth -->
             <div class="mb-3">
@@ -139,96 +139,132 @@
     </div>
 
     <!-- Success Modal -->
-    <div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="successModalLabel">Registration Successful</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    Congratulations! Your account has been successfully created. You will now be redirected to the login page.
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-primary" id="redirectLogin">Go to Login</button>
-                </div>
+<div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="successModalLabel">Registration Successful</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Congratulations! Your account has been successfully created. You will now be redirected to the login page.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="redirectLogin">Go to Login</button>
             </div>
         </div>
     </div>
+</div>
+
+<!-- Error Modal -->
+<div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="errorModalLabel">Registration Failed</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="errorMessage">
+                <!-- Dynamic error message will be inserted here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        document.getElementById('registerForm').addEventListener('submit', async (e) => {
-            e.preventDefault(); // Prevent default form submission
-
-            const password = document.getElementById('password').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
-            const pancardFile = document.getElementById('pancardFile').files[0];
-
-            // Validate file size and type
-            if (pancardFile) {
+        document.addEventListener("DOMContentLoaded", function () {
+            document.getElementById("registerForm").addEventListener("submit", async (e) => {
+                e.preventDefault(); // Prevent default form submission
+        
+                const API_URL = "https://cryptopro.onrender.com/register"; // Backend API endpoint
+        
+                const name = document.getElementById("name").value.trim();
+                const contactNumber = document.getElementById("contactNumber").value.trim();
+                const idProofNumber = document.getElementById("idProofNumberr").value.trim();
+                const dob = document.getElementById("dob").value.trim();
+                const email = document.getElementById("email").value.trim();
+                const password = document.getElementById("password").value;
+                const confirmPassword = document.getElementById("confirmPassword").value;
+                const idcardFile = document.getElementById("idcardFile").files[0];
+        
+                // Validate ID card file
+                if (idcardFile.size > 1 * 1024 * 1024) {
+                    alert("ID card file size must not exceed 1MB.");
+                    return;
+                }
                 const maxSize = 1 * 1024 * 1024; // 1MB
-                if (pancardFile.size > maxSize) {
-                    alert("PAN card file size must not exceed 1MB.");
+                if (idcardFile.size > maxSize) {
+                    showErrorModal("ID card file size must not exceed 1MB.");
                     return;
                 }
-                if (!pancardFile.type.includes("jpeg")) {
-                    alert("Only JPG format is allowed for PAN card upload.");
+                if (!idcardFile.type.includes("jpeg") && !idcardFile.type.includes("jpg")) {
+                    showErrorModal("Only JPG format is allowed for ID card upload.");
                     return;
                 }
-            } else {
-                alert("Please upload your PAN card.");
-                return;
-            }
-
-            // Validate password
-            const passwordRegex = /^(?=.*[A-Z])(?=.*[!@#$%^&*])(?=.*\d).{8,}$/;
-            if (!passwordRegex.test(password)) {
-                alert("Password must be at least 8 characters long, contain at least one uppercase letter, one special character, and one number.");
-                return;
-            }
-
-            // Check if passwords match
-            if (password !== confirmPassword) {
-                alert("Passwords do not match. Please re-enter.");
-                return;
-            }
-
-            // Prepare form data
-            const formData = new FormData();
-            formData.append('name', document.getElementById('name').value);
-            formData.append('contactNumber', document.getElementById('contactNumber').value);
-            formData.append('pancardNumber', document.getElementById('pancardNumber').value);
-            formData.append('dob', document.getElementById('dob').value);
-            formData.append('email', document.getElementById('email').value);
-            formData.append('password', password);
-            formData.append('pancardFile', pancardFile);
-
-            try {
-                // Send POST request to the server
-                const response = await fetch('http://localhost:3000/register', {
-                    method: 'POST',
-                    body: formData,
-                });
-
-                if (response.ok) {
-                    const successModal = new bootstrap.Modal(document.getElementById('successModal'));
-                    successModal.show();
-                    document.getElementById('redirectLogin').addEventListener('click', () => {
-                        window.location.href = 'login.html';
+        
+                // Validate password complexity (matches backend regex)
+                const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+                if (!passwordRegex.test(password)) {
+                    showErrorModal("Password must be at least 8 characters, contain one uppercase letter, one number, and one special character.");
+                    return;
+                }
+        
+                // Check if passwords match
+                if (password !== confirmPassword) {
+                    showErrorModal("Passwords do not match. Please re-enter.");
+                    return;
+                }
+        
+                // Prepare form data
+                const formData = new FormData();
+                formData.append("name", name);
+                formData.append("contactNumber", contactNumber);
+                formData.append("idProofNumber", idProofNumber);
+                formData.append("dob", dob);
+                formData.append("email", email);
+                formData.append("password", password);
+                formData.append("idcardFile", idcardFile);
+        
+                try {
+                    // Send POST request to the server
+                    const response = await fetch(API_URL, {
+                        method: "POST",
+                        body: formData,
                     });
-                    setTimeout(() => {
-                        window.location.href = 'login.html'; // Redirect to login page
-                    }, 5000);
-                } else {
-                    const errorMessage = await response.text();
-                    alert(`Registration failed: ${errorMessage}`);
+        
+                    const responseText = await response.text(); // Handle text-based response
+        
+                    if (response.ok) {
+                        // Show success modal
+                        const successModal = new bootstrap.Modal(document.getElementById("successModal"));
+                        successModal.show();
+        
+                        // Redirect only when the user clicks "Go to Login"
+                        document.getElementById("redirectLogin").addEventListener("click", () => {
+                            window.location.href = "login.html";
+                        });
+        
+                    } else {
+                        showErrorModal(responseText); // Show error modal with message
+                    }
+                } catch (error) {
+                    console.error("Error during registration:", error);
+                    showErrorModal("An error occurred during registration. Please try again.");
                 }
-            } catch (error) {
-                console.error('Error during registration:', error);
-                alert('An error occurred during registration. Please try again.');
+            });
+        
+            // Function to show error modal with a dynamic message
+            function showErrorModal(message) {
+                document.getElementById("errorMessage").innerText = message;
+                const errorModal = new bootstrap.Modal(document.getElementById("errorModal"));
+                errorModal.show();
             }
         });
-    </script>
+        </script>
+        
 </body>
 </html>

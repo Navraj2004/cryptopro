@@ -47,9 +47,9 @@
                             <th>Name</th>
                             <th>Email</th>
                             <th>Contact Number</th>
-                            <th>PAN Card Number</th>
+                            <th>ID Proof Number</th>
                             <th>Date of Birth</th>
-                            <th>PAN Card Image</th>
+                            <th>ID Proof Image</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -68,93 +68,89 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="imageModalLabel">PAN Card Preview</h5>
+                    <h5 class="modal-title" id="imageModalLabel">ID Proof Preview</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body text-center">
-                    <img src="" alt="PAN Card" id="modalImage">
+                    <img src="" alt="ID Proof" id="modalImage">
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        $(document).ready(function () {
-            // Fetch the Admin Key securely from the server
+$(document).ready(function () {
+    const API_URL = "https://cryptopro.onrender.com";
+
+    $.ajax({
+        url: `${API_URL}/admin/config`,
+        method: "GET",
+        success: function (config) {
+            const adminKey = config.adminKey;
+
             $.ajax({
-                url: 'http://localhost:3000/admin/config', // Endpoint to fetch the Admin Key
-                method: 'GET',
-                success: function (config) {
-                    const adminKey = config.adminKey; // Assume the server returns { adminKey: 'your-key' }
-    
-                    // Fetch users from the server using the Admin Key
-                    $.ajax({
-                        url: 'http://localhost:3000/admin/users', // Adjust the URL if needed
-                        method: 'GET',
-                        headers: {
-                            'Admin-Key': adminKey // Use the dynamically fetched Admin Key
-                        },
-                        success: function (response) {
-                            console.log(response); // Debugging response
-    
-                            // Check if response is successful and contains user data
-                            if (response.success && response.users && response.users.length > 0) {
-                                let rows = '';
-    
-                                response.users.forEach((user, index) => {
-                                    rows += `
-                                        <tr>
-                                            <td>${index + 1}</td>
-                                            <td>${user.name}</td>
-                                            <td>${user.email}</td>
-                                            <td>${user.contactNumber}</td>
-                                            <td>${user.pancardNumber}</td>
-                                            <td>${new Date(user.dob).toLocaleDateString()}</td>
-                                            <td>
-                                                ${
-                                                    user.pancardImage 
-                                                        ? `<img src="${user.pancardImage}" alt="PAN Card" class="zoomable" data-image="${user.pancardImage}" />` 
-                                                        : 'No Image'
-                                                }
-                                            </td>
-                                            <td>
-                                                ${
-                                                    user.pancardImage 
-                                                        ? `<a href="${user.pancardImage}" class="btn btn-sm btn-primary" download="PAN_Card_${user.name}.jpg">Download</a>` 
-                                                        : ''
-                                                }
-                                            </td>
-                                        </tr>
-                                    `;
-                                });
-    
-                                // Populate the table with user data
-                                $('#userTableBody').html(rows);
-    
-                                // Add click event for zooming image
-                                $('.zoomable').on('click', function () {
-                                    const imageSrc = $(this).data('image');
-                                    $('#modalImage').attr('src', imageSrc);
-                                    $('#imageModal').modal('show');
-                                });
-                            } else {
-                                $('#userTableBody').html('<tr><td colspan="8" class="text-center">No users found.</td></tr>');
-                            }
-                        },
-                        error: function (err) {
-                            console.error('Error fetching users:', err);
-                            $('#userTableBody').html('<tr><td colspan="8" class="text-center text-danger">Failed to load data.</td></tr>');
-                        }
-                    });
+                url: `${API_URL}/admin/users`,
+                method: "GET",
+                headers: {
+                    "Admin-Key": adminKey,
+                },
+                success: function (response) {
+                    console.log("Users Fetched:", response);
+
+                    if (response.success && response.users.length > 0) {
+                        let rows = "";
+
+                        response.users.forEach((user, index) => {
+                            rows += `
+                                <tr>
+                                    <td>${index + 1}</td>
+                                    <td>${user.name}</td>
+                                    <td>${user.email}</td>
+                                    <td>${user.contactNumber}</td>
+                                    <td>${user.idProofNumber}</td>
+                                    <td>${new Date(user.dob).toLocaleDateString()}</td>
+                                    <td>
+                                        ${
+                                            user.idProofImage
+                                                ? `<img src="${user.idProofImage}" alt="ID Proof" class="zoomable" data-image="${user.idProofImage}" />`
+                                                : "No Image"
+                                        }
+                                    </td>
+                                    <td>
+                                        ${
+                                            user.idProofImage
+                                                ? `<a href="${user.idProofImage}" class="btn btn-sm btn-primary" download="ID_Proof_${user.name}.jpg">Download</a>`
+                                                : ""
+                                        }
+                                    </td>
+                                </tr>
+                            `;
+                        });
+
+                        $("#userTableBody").html(rows);
+
+                        $(".zoomable").on("click", function () {
+                            const imageSrc = $(this).data("image");
+                            $("#modalImage").attr("src", imageSrc);
+                            $("#imageModal").modal("show");
+                        });
+                    } else {
+                        $("#userTableBody").html('<tr><td colspan="8" class="text-center">No users found.</td></tr>');
+                    }
                 },
                 error: function (err) {
-                    console.error('Error fetching Admin Key:', err);
-                    $('#userTableBody').html('<tr><td colspan="8" class="text-center text-danger">Failed to load data.</td></tr>');
-                }
+                    console.error("Error fetching users:", err);
+                    $("#userTableBody").html('<tr><td colspan="8" class="text-center text-danger">Failed to load data.</td></tr>');
+                },
             });
-        });
+        },
+        error: function (err) {
+            console.error("Error fetching Admin Key:", err);
+            $("#userTableBody").html('<tr><td colspan="8" class="text-center text-danger">Failed to load data.</td></tr>');
+        },
+    });
+});
     </script>
-    
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.min.js"></script>
 </body>
