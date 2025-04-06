@@ -385,7 +385,6 @@
         
         .table {
             color: var(--light-color);
-            background-color: transparent;
         }
         
         .table th {
@@ -403,11 +402,10 @@
         
         .table tbody tr {
             transition: all 0.3s ease;
-            background-color: rgba(15, 23, 42, 0.4) !important;
         }
         
         .table tbody tr:hover {
-            background-color: rgba(30, 41, 59, 0.7) !important;
+            background-color: rgba(255, 255, 255, 0.05);
         }
         
         .coin-cell {
@@ -512,55 +510,6 @@
                 grid-template-columns: 1fr;
                 padding: 1rem;
             }
-        }
-        
-        .transaction-history {
-            max-height: 350px;
-            overflow-y: auto;
-            scrollbar-width: thin;
-        }
-        
-        .tab-pane.holdings-pane {
-            max-height: 350px;
-            overflow-y: auto;
-            scrollbar-width: thin;
-        }
-        
-        /* Custom scrollbar styling */
-        .transaction-history::-webkit-scrollbar,
-        .tab-pane.holdings-pane::-webkit-scrollbar {
-            width: 6px;
-        }
-        
-        .transaction-history::-webkit-scrollbar-track,
-        .tab-pane.holdings-pane::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 10px;
-        }
-        
-        .transaction-history::-webkit-scrollbar-thumb,
-        .tab-pane.holdings-pane::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 10px;
-        }
-        
-        .transaction-history::-webkit-scrollbar-thumb:hover,
-        .tab-pane.holdings-pane::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
-        
-        /* Ensure dark styling for wallet tables */
-        .dark-table-body tr {
-            background-color: rgba(15, 23, 42, 0.4) !important;
-        }
-        
-        .dark-table-body tr:hover {
-            background-color: rgba(30, 41, 59, 0.7) !important;
-        }
-        
-        /* Ensure table has transparent background */
-        .tab-pane.holdings-pane .table {
-            background-color: transparent !important;
         }
     </style>
 </head>
@@ -766,7 +715,17 @@
                 </div>
             </div>
             <div class="wallet-balance-summary mb-4">
-                <!-- Content will be dynamically generated -->
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4 class="mb-0">Total Balance</h4>
+                    <h3 class="mb-0 fw-bold" id="walletTotalBalance">$0.00</h3>
+                </div>
+                <div class="progress" style="height: 8px;">
+                    <div class="progress-bar bg-gradient-primary" role="progressbar" style="width: 75%" aria-valuenow="75" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+                <div class="d-flex justify-content-between mt-2">
+                    <small class="text-muted">Portfolio Growth</small>
+                    <small class="text-success">+24.5% this month</small>
+                </div>
             </div>
             <div class="wallet-tabs mb-3">
                 <ul class="nav nav-pills nav-fill mb-3" id="walletTabs" role="tablist">
@@ -783,7 +742,7 @@
                 </ul>
             </div>
             <div class="tab-content" id="walletTabContent">
-                <div class="tab-pane fade show active holdings-pane" id="holdings" role="tabpanel" aria-labelledby="holdings-tab">
+                <div class="tab-pane fade show active" id="holdings" role="tabpanel" aria-labelledby="holdings-tab">
                     <table class="table table-hover align-middle">
                         <thead>
                             <tr>
@@ -793,7 +752,7 @@
                                 <th>Change</th>
                             </tr>
                         </thead>
-                        <tbody id="walletTableBody" class="dark-table-body">
+                        <tbody id="walletTableBody">
                             <!-- Wallet data will be inserted here -->
                         </tbody>
                     </table>
@@ -804,7 +763,10 @@
                     </div>
                 </div>
             </div>
-            <div class="d-flex justify-content-end mt-4">
+            <div class="d-flex justify-content-between mt-4">
+                <button class="btn btn-outline-primary px-4 py-2" id="exportWalletButton">
+                    <i class="fas fa-file-export me-2"></i>Export Data
+                </button>
                 <button class="btn btn-primary px-4 py-2" id="closeWalletButton">
                     <i class="fas fa-check-circle me-2"></i>Done
                 </button>
@@ -873,170 +835,23 @@
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script src="js/database.js"></script>
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
-    const API_URL = "https://cryptopro.onrender.com"; // Live backend API
-
-    // Define cryptocurrency data for ease of updating
-    const cryptoData = [
-        {
-            name: "Bitcoin",
-            symbol: "BTC",
-            icon: "fab fa-bitcoin",
-            background: "images/bitcoin.png"
-        },
-        {
-            name: "Ethereum",
-            symbol: "ETH",
-            icon: "fab fa-ethereum",
-            background: "images/ethereum.png"
-        },
-        {
-            name: "Cardano",
-            symbol: "ADA",
-            icon: "fas fa-coins",
-            background: "images/cardano.png"
-        },
-        {
-            name: "Litecoin",
-            symbol: "LTC",
-            icon: "fab fa-litecoin-sign",
-            background: "images/litecoin.png"
-        },
-        {
-            name: "Polkadot",
-            symbol: "DOT",
-            icon: "fas fa-dot-circle",
-            background: "images/polkadot.png"
-        },
-        {
-            name: "Dogecoin",
-            symbol: "DOGE",
-            icon: "fas fa-dog",
-            background: "images/dogecoin.png"
-        },
-        {
-            name: "Ripple",
-            symbol: "XRP",
-            icon: "fas fa-wave-square",
-            background: "images/ripple.png"
-        },
-        {
-            name: "Solana",
-            symbol: "SOL",
-            icon: "fas fa-sun",
-            background: "images/solana.png"
-        }
-    ];
-
-    // Function to fetch live cryptocurrency prices
-    async function fetchLivePrices() {
-        try {
-            const container = document.querySelector('.crypto-container');
-            
-            // Clear loading or previous content
-            container.innerHTML = '';
-            
-            // Create and append crypto cards with loading state
-            for (const crypto of cryptoData) {
-                const card = createCryptoCard(crypto);
-                container.appendChild(card);
-                
-                // Fetch real-time price for each cryptocurrency
-                fetchCryptoPrice(crypto.symbol, card);
-            }
-        } catch (error) {
-            console.error("Error fetching prices:", error);
-        }
-    }
+    // Global variables for cryptocurrency data
+    let cryptoPrices = {};
+    let currentUser = null;
     
-    // Function to fetch price for a specific cryptocurrency
-    async function fetchCryptoPrice(symbol, cardElement) {
-        try {
-            const response = await fetch(`${API_URL}/crypto-price?coin=${symbol}`);
-            const data = await response.json();
-            
-            if (response.ok) {
-                const priceValue = data.price;
-                const previousPrice = data.previousPrice || priceValue * (1 - (Math.random() * 0.1 - 0.05)); // Fallback
-                const change = ((priceValue - previousPrice) / previousPrice) * 100;
-                
-                // Update card with real price
-                updateCryptoCard(cardElement, priceValue, change);
-            } else {
-                console.error(`Failed to fetch price for ${symbol}:`, data.message);
-                // Show error state on card
-                cardElement.querySelector('.crypto-price-value').textContent = 'Price Unavailable';
-                cardElement.querySelector('.crypto-price-change').textContent = 'N/A';
-                cardElement.querySelector('.crypto-price-change').classList.remove('negative');
-            }
-        } catch (error) {
-            console.error(`Error fetching price for ${symbol}:`, error);
-            cardElement.querySelector('.crypto-price-value').textContent = 'Error';
-        }
-    }
-    
-    // Function to create a cryptocurrency card
-    function createCryptoCard(crypto) {
-        const card = document.createElement('div');
-        card.className = 'crypto-card';
-        card.setAttribute('data-aos', 'fade-up');
-        card.setAttribute('data-crypto', crypto.name);
-        card.style.backgroundImage = `url('${crypto.background}')`;
-        
-        card.innerHTML = `
-            <div class="crypto-logo">
-                <i class="${crypto.icon}"></i>
-            </div>
-            <div class="crypto-card-content">
-                <h3>${crypto.name} (${crypto.symbol})</h3>
-                <div class="crypto-price">
-                    <span class="crypto-price-value">
-                        <div class="spinner-border spinner-border-sm" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
-                        Loading...
-                    </span>
-                    <span class="crypto-price-change">...</span>
-                </div>
-                <div class="crypto-actions">
-                    <a href="buy.html?coin=${crypto.name}" class="buy-button">
-                        <i class="fas fa-shopping-cart me-1"></i> Buy
-                    </a>
-                    <a href="sell.html?coin=${crypto.name}" class="sell-button">
-                        <i class="fas fa-exchange-alt me-1"></i> Sell
-                    </a>
-                </div>
-            </div>
-        `;
-        
-        return card;
-    }
-    
-    // Function to update a cryptocurrency card with price data
-    function updateCryptoCard(cardElement, price, change) {
-        const priceValueElement = cardElement.querySelector('.crypto-price-value');
-        const priceChangeElement = cardElement.querySelector('.crypto-price-change');
-        const buyButtonElement = cardElement.querySelector('.buy-button');
-        const cryptoName = cardElement.getAttribute('data-crypto');
-        
-        // Update price display
-        priceValueElement.textContent = `$${price.toFixed(2)}`;
-        
-        // Update change percentage
-        const changeText = change >= 0 ? `+${change.toFixed(2)}%` : `${change.toFixed(2)}%`;
-        priceChangeElement.textContent = changeText;
-        
-        // Set appropriate class based on positive/negative change
-        if (change >= 0) {
-            priceChangeElement.classList.remove('negative');
-        } else {
-            priceChangeElement.classList.add('negative');
-        }
-        
-        // Update buy link to include current price
-        buyButtonElement.href = `buy.html?coin=${cryptoName}&price=${price.toFixed(2)}`;
+    // Function to redirect to login page
+    function redirectToLogin() {
+        window.location.href = "login.html";
     }
 
+    // Function to handle logout
+    function logout() {
+        localStorage.removeItem("token"); 
+        const logoutModal = new bootstrap.Modal(document.getElementById("logoutModal"));
+        logoutModal.show();
+        setTimeout(redirectToLogin, 2000);
+    }
+    
     async function fetchUserDetails() {
         const token = localStorage.getItem("token");
         if (!token) {
@@ -1046,106 +861,180 @@
         }
 
         try {
-            const response = await fetch(`${API_URL}/user`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-
-            const result = await response.json();
-            if (response.ok && result.success) {
-                document.getElementById("userName").textContent = result.user.name;
-            } else {
-                alert(result.message || "Failed to fetch user details.");
-                window.location.href = "login.html";
+            // Get current user from database
+            const users = Database.users.getAll();
+            currentUser = users.find(user => user.email === token);
+            
+            if (!currentUser) {
+                // If user not found in database, create a default user
+                currentUser = {
+                    id: Date.now().toString(),
+                    name: "User",
+                    email: token,
+                    createdAt: new Date().toISOString(),
+                    status: "Verified"
+                };
+                Database.users.add(currentUser);
             }
+            
+            // Display user email in welcome message
+            document.getElementById("userEmail").textContent = currentUser.email;
+            
+            // Fetch cryptocurrency prices
+            await fetchCryptoPrices();
         } catch (error) {
             console.error("Error fetching user details:", error);
-            alert("An error occurred while fetching user details.");
-            window.location.href = "login.html";
+            alert("An error occurred while fetching your details. Please try again later.");
         }
     }
 
+    // Fetch real-time cryptocurrency prices
+    async function fetchCryptoPrices() {
+        try {
+            const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,ripple,litecoin,cardano,polkadot,solana&vs_currencies=usd&include_24hr_change=true');
+            const data = await response.json();
+            
+            // Store prices in global variable
+            cryptoPrices.Bitcoin = { price: data.bitcoin.usd, change: data.bitcoin.usd_24h_change };
+            cryptoPrices.Ethereum = { price: data.ethereum.usd, change: data.ethereum.usd_24h_change };
+            cryptoPrices.Ripple = { price: data.ripple.usd, change: data.ripple.usd_24h_change };
+            cryptoPrices.Litecoin = { price: data.litecoin.usd, change: data.litecoin.usd_24h_change };
+            cryptoPrices.Cardano = { price: data.cardano.usd, change: data.cardano.usd_24h_change };
+            cryptoPrices.Polkadot = { price: data.polkadot.usd, change: data.polkadot.usd_24h_change };
+            cryptoPrices.Solana = { price: data.solana.usd, change: data.solana.usd_24h_change };
+            
+            // Update cryptocurrency cards with real-time prices
+            updateCryptoCards();
+        } catch (error) {
+            console.error('Error fetching cryptocurrency prices:', error);
+            // Use fallback prices if API fails
+            cryptoPrices.Bitcoin = { price: 38245.67, change: 2.5 };
+            cryptoPrices.Ethereum = { price: 2567.89, change: 1.8 };
+            cryptoPrices.Ripple = { price: 0.5678, change: -0.9 };
+            cryptoPrices.Litecoin = { price: 145.67, change: 0.7 };
+            cryptoPrices.Cardano = { price: 1.23, change: 3.2 };
+            cryptoPrices.Polkadot = { price: 18.45, change: -1.5 };
+            cryptoPrices.Solana = { price: 98.76, change: 4.3 };
+            updateCryptoCards();
+        }
+    }
+
+    // Function to update cryptocurrency cards with real-time prices
+    function updateCryptoCards() {
+        const cryptoCards = document.querySelectorAll('.crypto-card');
+        
+        cryptoCards.forEach(card => {
+            const cryptoName = card.getAttribute('data-crypto');
+            const priceElement = card.querySelector('.crypto-price');
+            const changeElement = card.querySelector('.crypto-price-change');
+            
+            if (cryptoPrices[cryptoName]) {
+                const price = cryptoPrices[cryptoName].price;
+                const change = cryptoPrices[cryptoName].change;
+                
+                // Update price
+                priceElement.textContent = `$${price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                
+                // Update price change
+                changeElement.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`;
+                changeElement.classList.remove('positive', 'negative');
+                changeElement.classList.add(change >= 0 ? 'positive' : 'negative');
+            }
+        });
+    }
+    
     async function fetchWallet() {
-        const token = localStorage.getItem('token');
-        if (!token) {
+        if (!currentUser) {
             alert("Please log in to view your wallet.");
             window.location.href = "login.html";
             return;
         }
-
+        
         try {
-            // First fetch the user data to get user ID
-            const userResponse = await fetch(`${API_URL}/user`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const walletTableBody = document.getElementById('walletTableBody');
+            const transactionHistory = document.getElementById('transactionHistory');
             
-            if (!userResponse.ok) {
-                throw new Error('Failed to fetch user details');
+            // Clear existing data
+            walletTableBody.innerHTML = '';
+            transactionHistory.innerHTML = '';
+            
+            // Get user's wallet from localStorage
+            const wallets = JSON.parse(localStorage.getItem('wallets') || '{}');
+            const userWallet = wallets[currentUser.id] || { balance: 10000, holdings: {} };
+            
+            // Calculate total wallet value
+            let totalValue = userWallet.balance;
+            const holdings = [];
+            
+            // Convert holdings object to array and calculate values
+            for (const symbol in userWallet.holdings) {
+                const holding = userWallet.holdings[symbol];
+                const currentPrice = cryptoPrices[holding.name]?.price || holding.currentPrice || 0;
+                const value = holding.quantity * currentPrice;
+                totalValue += value;
+                
+                if (holding.quantity > 0) {
+                    holdings.push({
+                        coin: holding.name,
+                        symbol: symbol,
+                        quantity: holding.quantity,
+                        value: value,
+                        price: currentPrice
+                    });
+                }
             }
             
-            const userData = await userResponse.json();
-            const userId = userData.user.id || 'user123'; // Use the user ID from the API or fallback
+            // Update wallet total value
+            document.getElementById('walletTotalValue').textContent = `$${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
             
-            // Get wallet data from our database
-            const walletData = Database.wallets.getFormattedWallet(userId);
+            // Update available balance
+            document.getElementById('availableBalance').textContent = `$${userWallet.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
             
-            // Update the wallet balance summary
-            const totalBalance = Database.wallets.getTotalBalance(userId);
-            
-            // Get transactions for this user
-            const transactions = Database.transactions.getByUserId(userId);
-            
-            // Update the wallet table
-            const walletTableBody = document.getElementById("walletTableBody");
-            walletTableBody.innerHTML = "";
-
-            if (walletData.length === 0) {
-                walletTableBody.innerHTML = `<tr><td colspan="4" class="text-center">No assets found in your wallet. Try buying some coins!</td></tr>`;
+            // Add wallet data to table
+            if (holdings.length === 0) {
+                walletTableBody.innerHTML = `<tr><td colspan="4" class="text-center">No cryptocurrencies in your wallet yet. Start by buying some!</td></tr>`;
             } else {
-                walletData.forEach((item) => {
-                    const row = document.createElement("tr");
+                holdings.forEach(item => {
+                    const row = document.createElement('tr');
                     row.innerHTML = `
                         <td>
-                            <div class="d-flex align-items-center">
-                                <div class="coin-icon me-2">
-                                    <i class="${item.icon}"></i>
+                            <div class="coin-cell">
+                                <div class="coin-icon">
+                                    <i class="fab fa-${item.symbol.toLowerCase()}"></i>
                                 </div>
-                                <div>${item.coin}</div>
+                                <div>
+                                    <h6 class="mb-0">${item.coin}</h6>
+                                    <small class="text-muted">${item.symbol}</small>
+                                </div>
                             </div>
                         </td>
-                        <td>${item.quantity}</td>
-                        <td>$${item.totalPrice.toFixed(2)}</td>
-                        <td class="${item.changeClass}">${item.change}</td>
+                        <td class="text-center">${item.quantity}</td>
+                        <td class="text-end">$${item.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td class="text-center">
+                            <a href="buy.html?coin=${item.coin}" class="action-link buy">Buy</a>
+                            <a href="sell.html?coin=${item.coin}&available=${item.quantity}" class="action-link sell">Sell</a>
+                        </td>
                     `;
                     walletTableBody.appendChild(row);
                 });
             }
+            // Get user's transactions
+            const allTransactions = Database.transactions.getAll();
+            const userTransactions = allTransactions.filter(tx => tx.userId === currentUser.id);
             
-            // Update transaction history
-            const transactionHistory = document.getElementById('transactionHistory');
-            transactionHistory.innerHTML = '';
+            // Sort transactions by date (newest first)
+            userTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
             
-            if (transactions.length === 0) {
-                transactionHistory.innerHTML = `<div class="text-center text-muted py-4">No transaction history found. Start trading to see your activity here!</div>`;
+            // Add transaction data to history
+            if (userTransactions.length === 0) {
+                transactionHistory.innerHTML = `<div class="text-center p-3">No transactions yet.</div>`;
             } else {
-                // Sort transactions by date (newest first)
-                transactions.sort((a, b) => {
-                    const dateA = new Date(a.date || a.createdAt);
-                    const dateB = new Date(b.date || b.createdAt);
-                    return dateB - dateA;
-                });
-                
-                transactions.forEach(tx => {
+                userTransactions.forEach(tx => {
                     const transactionItem = document.createElement('div');
                     transactionItem.className = 'transaction-item';
                     
                     const isBuy = tx.type === 'Buy';
-                    const date = new Date(tx.date || tx.createdAt).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
+                    const date = new Date(tx.date).toLocaleString();
                     
                     transactionItem.innerHTML = `
                         <div class="d-flex justify-content-between align-items-center">
@@ -1159,126 +1048,118 @@
                                 </div>
                             </div>
                             <div class="text-end">
-                                <h6 class="mb-0">${isBuy ? '+' : '-'}${tx.amount}</h6>
-                                <small class="${isBuy ? 'text-success' : 'text-danger'}">${tx.price}</small>
+                                <h6 class="mb-0">${isBuy ? '+' : '-'}${tx.amount} ${tx.symbol}</h6>
+                                <small class="${isBuy ? 'text-success' : 'text-danger'}">$${tx.totalPrice.toFixed(2)}</small>
                             </div>
                         </div>
                     `;
-                    
-                    transactionHistory.appendChild(transactionItem);
-                });
+                // If user not found in database, redirect to login
+                alert('User not found. Please log in again.');
+                localStorage.removeItem('token');
+                window.location.href = 'login.html';
+                return;
             }
             
-            // Show total wallet summary at the top with more details
-            const walletSummary = document.querySelector('.wallet-balance-summary');
+            // Display user email in welcome message
+            document.getElementById('userEmail').textContent = currentUser.email;
             
-            // Create wallet summary content
-            if (totalBalance > 0 || transactions.length > 0) {
-                walletSummary.innerHTML = `
-                    <h4 class="mb-3">Wallet Summary</h4>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>Total Balance:</span>
-                        <span class="fw-bold" id="walletTotalBalance">$${totalBalance.toFixed(2)}</span>
-                    </div>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>Total Assets:</span>
-                        <span>${walletData.length}</span>
-                    </div>
-                    <div class="d-flex justify-content-between">
-                        <span>Total Transactions:</span>
-                        <span>${transactions.length}</span>
-                    </div>
-                `;
-            } else {
-                walletSummary.innerHTML = `
-                    <div class="text-center py-3">
-                        <i class="fas fa-wallet fa-3x mb-3" style="color: var(--secondary-color);"></i>
-                        <h4>Your wallet is empty</h4>
-                        <p class="text-muted mb-0">Start trading to see your assets here</p>
-                    </div>
-                `;
-            }
-            
+            // Fetch cryptocurrency prices
+            fetchCryptoPrices();
         } catch (error) {
-            console.error("Error fetching wallet:", error);
-            document.getElementById("walletTableBody").innerHTML = `
-                <tr><td colspan="4" class="text-center text-danger">
-                    An error occurred while fetching wallet details. Please try again later.
-                </td></tr>
-            `;
+            console.error("Error fetching user details:", error);
+            alert("An error occurred while loading user data. Please try again.");
+        }
+    }
+    
+    // Fetch real-time cryptocurrency prices
+    async function fetchCryptoPrices() {
+        try {
+            const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,ripple,litecoin,cardano,polkadot,solana&vs_currencies=usd&include_24hr_change=true');
+            const data = await response.json();
             
-            const walletSummary = document.querySelector('.wallet-balance-summary');
-            walletSummary.innerHTML = `
-                <div class="text-center py-3">
-                    <i class="fas fa-exclamation-triangle fa-3x mb-3 text-warning"></i>
-                    <h4>Error Loading Wallet</h4>
-                    <p class="text-muted mb-0">Please try again later</p>
-                </div>
-            `;
+            // Store prices in global variable
+            cryptoPrices = {
+                'Bitcoin': { price: data.bitcoin.usd, change: data.bitcoin.usd_24h_change },
+                'Ethereum': { price: data.ethereum.usd, change: data.ethereum.usd_24h_change },
+                'Ripple': { price: data.ripple.usd, change: data.ripple.usd_24h_change },
+                'Litecoin': { price: data.litecoin.usd, change: data.litecoin.usd_24h_change },
+                'Cardano': { price: data.cardano.usd, change: data.cardano.usd_24h_change },
+                'Polkadot': { price: data.polkadot.usd, change: data.polkadot.usd_24h_change },
+                'Solana': { price: data.solana.usd, change: data.solana.usd_24h_change }
+            };
+            
+            // Update cryptocurrency cards with real-time prices
+            updateCryptoCards();
+        } catch (error) {
+            console.error('Error fetching cryptocurrency prices:', error);
+            // Use fallback prices if API fails
+            cryptoPrices = {
+                'Bitcoin': { price: 38245.67, change: 2.5 },
+                'Ethereum': { price: 2567.89, change: 1.8 },
+                'Ripple': { price: 0.5678, change: -0.9 },
+                'Litecoin': { price: 145.67, change: 0.7 },
+                'Cardano': { price: 1.23, change: 3.2 },
+                'Polkadot': { price: 18.45, change: -1.5 },
+                'Solana': { price: 98.76, change: 4.3 }
+            };
+            updateCryptoCards();
         }
     }
 
-    function redirectToLogin() {
-        window.location.href = "login.html";
+    // Function to update cryptocurrency cards with real-time prices
+    function updateCryptoCards() {
+        const cryptoCards = document.querySelectorAll('.crypto-card');
+        
+        cryptoCards.forEach(card => {
+            const cryptoName = card.getAttribute('data-crypto');
+            const priceElement = card.querySelector('.crypto-price');
+            const changeElement = card.querySelector('.crypto-price-change');
+            
+            if (cryptoPrices[cryptoName]) {
+                const price = cryptoPrices[cryptoName].price;
+                const change = cryptoPrices[cryptoName].change;
+                
+                // Update price
+                priceElement.textContent = `$${price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                
+                // Update price change
+                changeElement.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`;
+                changeElement.classList.remove('positive', 'negative');
+                changeElement.classList.add(change >= 0 ? 'positive' : 'negative');
+            }
+        });
     }
-
-    function logout() {
-        localStorage.removeItem("token"); 
-        const logoutModal = new bootstrap.Modal(document.getElementById("logoutModal"));
-        logoutModal.show();
-        setTimeout(redirectToLogin, 2000);
-    }
-
-    document.getElementById("logoutButton").addEventListener("click", function () {
-        const confirmModal = new bootstrap.Modal(document.getElementById("confirmLogoutModal"));
-        confirmModal.show();
-    });
-
-    document.getElementById("confirmLogoutButton").addEventListener("click", function () {
-        const confirmModal = bootstrap.Modal.getInstance(document.getElementById("confirmLogoutModal"));
-        confirmModal.hide();
-        logout();
-    });
-
-    document.getElementById("walletButton").addEventListener("click", () => {
-        document.getElementById("walletModal").style.display = "flex";
-        // Reset to the holdings tab whenever the wallet is opened
-        const holdingsTab = document.getElementById('holdings-tab');
-        const transactionsTab = document.getElementById('transactions-tab');
-        const holdingsPane = document.getElementById('holdings');
-        const transactionsPane = document.getElementById('transactions');
-        
-        // Activate holdings tab
-        holdingsTab.classList.add('active');
-        holdingsPane.classList.add('show', 'active');
-        
-        // Deactivate transactions tab
-        transactionsTab.classList.remove('active');
-        transactionsPane.classList.remove('show', 'active');
-        
-        fetchWallet();
-    });
-
-    document.getElementById("closeWallet").addEventListener("click", () => {
-        document.getElementById("walletModal").style.display = "none";
-    });
-
-    document.getElementById("closeWalletButton").addEventListener("click", () => {
-        document.getElementById("walletModal").style.display = "none";
-    });
-
-    fetchUserDetails();
     
-    // Initialize AOS
-    AOS.init({
-        duration: 800,
-        easing: 'ease-in-out',
-        once: true
-    });
+
     
-    // Add background-clip standard property for compatibility
-    document.addEventListener('DOMContentLoaded', function() {
-        // Create a style element instead of trying to modify existing stylesheets
+    // Document ready event handler
+    document.addEventListener("DOMContentLoaded", function() {
+        // Add event listeners
+        document.getElementById("walletButton").addEventListener("click", function() {
+            document.getElementById("walletModal").style.display = "flex";
+            fetchWallet();
+        });
+
+        document.getElementById("closeWallet").addEventListener("click", function() {
+            document.getElementById("walletModal").style.display = "none";
+        });
+
+        document.getElementById("closeWalletButton").addEventListener("click", function() {
+            document.getElementById("walletModal").style.display = "none";
+        });
+        
+        document.getElementById("logoutButton").addEventListener("click", function() {
+            const confirmModal = new bootstrap.Modal(document.getElementById("confirmLogoutModal"));
+            confirmModal.show();
+        });
+
+        document.getElementById("confirmLogoutButton").addEventListener("click", function() {
+            const confirmModal = bootstrap.Modal.getInstance(document.getElementById("confirmLogoutModal"));
+            confirmModal.hide();
+            logout();
+        });
+        
+        // Create a style element for compatibility
         const style = document.createElement('style');
         style.textContent = `
             header h1,
@@ -1299,21 +1180,17 @@
             `;
             document.head.appendChild(style);
         }
+        
+        // Initialize
+        fetchUserDetails();
+        
+        // Initialize AOS
+        AOS.init({
+            duration: 800,
+            easing: 'ease-in-out',
+            once: true
+        });
     });
-
-    // Initial data fetching
-    fetchUserDetails();
-    fetchLivePrices();
-    
-    // Set refresh interval for cryptocurrency prices (every 30 seconds)
-    const priceRefreshInterval = setInterval(fetchLivePrices, 30000);
-    
-    // Clear the interval when the page is unloaded
-    window.addEventListener('beforeunload', () => {
-        clearInterval(priceRefreshInterval);
-    });
-});
-
     </script>
 </body>
 </html>
