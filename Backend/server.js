@@ -7,39 +7,43 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const axios = require('axios');
-const path = require('path');
-const session = require('express-session');
-const config = require('./config');
 
 const app = express();
-const port = config.port;
+const port = process.env.PORT || 3000;
+const jwtSecret = process.env.JWT_SECRET || 'default_jwt_secret';
+const apiKey = process.env.CMC_API_KEY; // Crypto API key
+
+const mongodbUri = process.env.MONGODB_URI;
+
+
 
 // Middleware
-app.use(express.json({ limit: '50mb' }));
 app.use(cors());
+app.use(bodyParser.json());
 
+app.use(express.json());
+const session = require('express-session');
 // Use session middleware
 app.use(
     session({
-      secret: config.jwtSecret,
+      secret: jwtSecret,
       resave: false,
       saveUninitialized: true,
       cookie: { secure: false }, // Set `secure: true` for HTTPS
     })
-);
+  );
 
 // MongoDB Connection
-const connectDB = async () => {
-    try {
-        await mongoose.connect(config.mongoURI);
-        console.log('MongoDB Connected...');
-    } catch (err) {
-        console.error('MongoDB connection error:', err.message);
-        process.exit(1);
-    }
-};
-
-connectDB();
+mongoose
+  .connect(mongodbUri, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
+  .then(() => console.log('Connected to MongoDB Atlas'))
+  .catch((err) => {
+    console.error('Error connecting to MongoDB Atlas:', err.message);
+    process.exit(1);
+  });
 
 // Configure Multer for Image Upload
 const storage = multer.memoryStorage();
@@ -55,18 +59,51 @@ const upload = multer({
   },
 });
 
-// Import our models
-const User = require('./models/User');
-const Transaction = require('./models/Transaction');
-
-// Admin Schema (will be migrated later)
+// Admin Schema
 const adminSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
 });
 const Admin = mongoose.model('Admin', adminSchema);
 
+// User Schema
+const userSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  contactNumber: { type: String, required: true },
+  idProofNumber: { type: String, required: true },
+  dob: { type: Date, required: true },
+  email: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+  idProofImage: { type: Buffer, required: true },
+  purchases: [
+    {
+      coin: { type: String, required: true },
+      quantity: { type: Number, required: true },
+      totalPrice: { type: Number, required: true },
+      date: { type: Date, default: Date.now },
+    },
+  ],
+});
+const User = mongoose.model('User', userSchema);
+
+// Authentication Middleware
+const authenticateUser = (req, res, next) => {
+  const token = req.header('Authorization')?.replace('Bearer ', '');
+  if (!token) {
+    return res.status(401).json({ success: false, message: 'Unauthorized: No token provided' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, jwtSecret);
+    req.user = { email: decoded.email };
+    next();
+  } catch (err) {
+    res.status(401).json({ success: false, message: 'Unauthorized: Invalid token' });
+  }
+};
 // Middleware to Authenticate Admin Token
+require('dotenv').config(); // Load .env variables
+
 const authenticateAdmin = (req, res, next) => {
   const adminKey = req.header('Admin-Key');
   if (!adminKey) {
@@ -82,18 +119,13 @@ const authenticateAdmin = (req, res, next) => {
   req.admin = { role: 'admin' };
   next();
 };
-
-// Import our routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/wallet', require('./routes/wallet'));
-app.use('/api/transactions', require('./routes/transactions'));
-
 // Fetching Admin key
 app.get('/admin/config', (req, res) => {
   res.json({ adminKey: process.env.ADMIN_SECRET_KEY });
 });
 
-// Registration Route (legacy - will be deprecated in favor of /api/auth/register)
+
+// Registration Route
 app.post('/register', upload.single('idProofFile'), async (req, res) => {
   const { name, contactNumber, idProofNumber, dob, email, password } = req.body;
 
@@ -113,16 +145,17 @@ app.post('/register', upload.single('idProofFile'), async (req, res) => {
       return res.status(400).send('Email already exists');
     }
 
-    // Create new user with our new model format
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Save user details
     const user = new User({
       name,
       contactNumber,
       idProofNumber,
       dob,
       email,
-      password, // Password will be hashed by the pre-save middleware
-      idProofImage: req.file.buffer.toString('base64'),
-      wallet: {}
+      password: hashedPassword,
+      idProofImage: req.file.buffer,
     });
 
     await user.save();
@@ -133,7 +166,8 @@ app.post('/register', upload.single('idProofFile'), async (req, res) => {
   }
 });
 
-// Login Route (legacy - will be deprecated in favor of /api/auth/login)
+// Login Route
+// Login Route
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -147,12 +181,12 @@ app.post('/login', async (req, res) => {
       return res.status(400).json({ success: false, message: 'User not found' });
     }
 
-    const isMatch = await user.comparePassword(password);
+    const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ success: false, message: 'Incorrect password' });
     }
 
-    const token = jwt.sign({ user: { id: user._id } }, config.jwtSecret, { expiresIn: '1h' });
+    const token = jwt.sign({ email: user.email }, jwtSecret, { expiresIn: '1h' });
 
     res.status(200).json({
       success: true,
@@ -165,9 +199,8 @@ app.post('/login', async (req, res) => {
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
-
 // Delete user by email (and all associated data)
-app.delete("/admin/users/:email", authenticateAdmin, async (req, res) => {
+app.delete("/admin/users/:email", async (req, res) => {
   try {
       const { email } = req.params;
 
@@ -178,9 +211,6 @@ app.delete("/admin/users/:email", authenticateAdmin, async (req, res) => {
           return res.status(404).json({ success: false, message: "User not found" });
       }
 
-      // Also delete all transactions associated with this user
-      await Transaction.deleteMany({ userId: deletedUser._id });
-
       res.json({
           success: true,
           message: "User deleted successfully",
@@ -190,8 +220,8 @@ app.delete("/admin/users/:email", authenticateAdmin, async (req, res) => {
               contactNumber: deletedUser.contactNumber,
               idProofNumber: deletedUser.idProofNumber,
               dob: deletedUser.dob,
-              idProofImage: deletedUser.idProofImage,
-              wallet: deletedUser.wallet
+              idProofImage: deletedUser.idProofImage ? deletedUser.idProofImage.toString("base64") : null, // Convert image buffer to Base64
+              purchases: deletedUser.purchases,
           },
       });
   } catch (error) {
@@ -199,6 +229,7 @@ app.delete("/admin/users/:email", authenticateAdmin, async (req, res) => {
       res.status(500).json({ success: false, message: "Internal server error" });
   }
 });
+
 
 // Route to fetch ID proof image by user ID
 app.get('/get-idproof/:id', async (req, res) => {
@@ -208,55 +239,240 @@ app.get('/get-idproof/:id', async (req, res) => {
       return res.status(404).send('ID proof image not found');
     }
     res.set('Content-Type', 'image/jpeg');
-    // If image is stored as base64, convert back to buffer
-    const imageBuffer = Buffer.from(user.idProofImage, 'base64');
-    res.send(imageBuffer);
+    res.send(user.idProofImage);
   } catch (err) {
     console.error('Error fetching ID proof image:', err);
     res.status(500).send('Failed to fetch ID proof image');
   }
 });
 
-// Admin Route to Fetch All Users
-app.get('/admin/users', authenticateAdmin, async (req, res) => {
+
+// Buy Cryptocurrency Route
+app.post('/buy', authenticateUser, async (req, res) => {
+    const { coin, quantity, totalPrice } = req.body;
+
+    if (!coin || !quantity || quantity <= 0 || !totalPrice || totalPrice <= 0) {
+        return res.status(400).json({ success: false, message: 'All fields are required and must be valid' });
+    }
+
+    try {
+        const user = await User.findOne({ email: req.user.email });
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        // Check if the coin already exists in the user's purchases
+        const existingPurchase = user.purchases.find(p => p.coin === coin);
+
+        if (existingPurchase) {
+            // Update the existing purchase
+            existingPurchase.quantity += quantity;
+            existingPurchase.totalPrice += totalPrice;
+        } else {
+            // Add a new purchase
+            user.purchases.push({
+                coin,
+                quantity,
+                totalPrice,
+            });
+        }
+
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            message: `Successfully purchased ${quantity} ${coin}(s) for $${totalPrice}.`,
+            purchases: user.purchases,
+        });
+    } catch (err) {
+        console.error('Error during purchase:', err);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+});
+
+// Sell Cryptocurrency Route
+app.post('/sell', authenticateUser, async (req, res) => {
+  const { coin, quantity, totalPrice } = req.body;
+
+  if (!coin || !quantity || quantity <= 0 || !totalPrice || totalPrice <= 0) {
+      return res.status(400).json({ success: false, message: 'All fields are required and must be valid.' });
+  }
+
   try {
-      const users = await User.find().select('-password');
-      
-      const usersFormatted = users.map(user => {
-          return {
-              id: user._id,
-              name: user.name,
-              email: user.email,
-              contactNumber: user.contactNumber,
-              registrationDate: user._id.getTimestamp(),
-              wallet: user.wallet || {}
-          };
+      const user = await User.findOne({ email: req.user.email });
+
+      if (!user) {
+          return res.status(404).json({ success: false, message: 'User not found.' });
+      }
+
+      // Check if the coin exists in the user's holdings
+      const existingPurchase = user.purchases.find(p => p.coin === coin);
+
+      if (!existingPurchase || existingPurchase.quantity < quantity) {
+          return res.status(400).json({ success: false, message: 'Insufficient quantity to sell.' });
+      }
+
+      // Update the quantity and total price
+      existingPurchase.quantity -= quantity;
+      existingPurchase.totalPrice -= totalPrice;
+
+      // Remove the coin entry if quantity becomes zero
+      if (existingPurchase.quantity <= 0) {
+          user.purchases = user.purchases.filter(p => p.coin !== coin);
+      }
+
+      await user.save();
+
+      res.status(200).json({
+          success: true,
+          message: `Successfully sold ${quantity} ${coin}(s) for $${totalPrice}.`,
+          purchases: user.purchases,
       });
-      
-      // Send success response with user data
-      res.json({ success: true, users: usersFormatted });
-  } catch (error) {
-      console.error('Error fetching users:', error);
+  } catch (err) {
+      console.error('Error during sale:', err);
+      res.status(500).json({ success: false, message: 'Internal server error.' });
+  }
+});
+
+// Wallet Route
+app.get('/wallet', authenticateUser, async (req, res) => {
+  try {
+      const user = await User.findOne({ email: req.user.email });
+      if (!user) {
+          return res.status(404).json({ success: false, message: 'User not found' });
+      }
+
+      res.status(200).json({ success: true, wallet: user.purchases });
+  } catch (err) {
+      console.error('Error fetching wallet:', err);
       res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
-// Serve static assets in production
-if (process.env.NODE_ENV === 'production') {
-    // Set static folder
-    app.use(express.static(path.join(__dirname, '..', 'public')));
-    
-    app.get('*', (req, res) => {
-        res.sendFile(path.resolve(__dirname, '..', 'public', 'index.html'));
+
+
+// Fetch User Details by Email
+app.get('/user', authenticateUser, async (req, res) => {
+    try {
+        const user = await User.findOne({ email: req.user.email });
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        res.status(200).json({
+            success: true,
+            user: {
+                name: user.name,
+                email: user.email,
+            },
+        });
+    } catch (err) {
+        console.error('Error fetching user details:', err);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+});
+// FETCHING LIVE CURRENCY PRICE
+app.get('/crypto-price', async (req, res) => {
+  const { coin } = req.query;
+
+  if (!coin) {
+    return res.status(400).json({ success: false, message: 'Coin parameter is required' });
+  }
+
+  try {
+    const response = await axios.get('https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest', {
+      params: { symbol: coin.toUpperCase() },
+      headers: { 'X-CMC_PRO_API_KEY': apiKey },
     });
-}
+
+    const coinData = response.data.data[coin.toUpperCase()];
+    if (!coinData || !coinData.quote || !coinData.quote.USD) {
+      return res.status(404).json({ success: false, message: `Price data not found for ${coin}` });
+    }
+
+    const price = coinData.quote.USD.price;
+    res.status(200).json({ success: true, price });
+  } catch (err) {
+    console.error('Error fetching cryptocurrency price:', err.message);
+    const statusCode = err.response ? err.response.status : 500;
+    const message = statusCode === 500
+      ? 'Failed to fetch cryptocurrency price due to an internal server error.'
+      : `Failed to fetch cryptocurrency price: ${err.response.data.status.error_message}`;
+    res.status(statusCode).json({ success: false, message });
+  }
+});
+
+
+// Admin Login Route
+app.post('/api/admin/login', async (req, res) => {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+        return res.status(400).json({ success: false, message: "Email and password are required." });
+    }
+
+    try {
+        const admin = await Admin.findOne({ email });
+
+        if (!admin) {
+            return res.status(404).json({ success: false, message: "Admin not found." });
+        }
+
+        const isMatch = await bcrypt.compare(password, admin.password);
+
+        if (!isMatch) {
+            return res.status(401).json({ success: false, message: "Incorrect password. Please try again." });
+        }
+
+        return res.status(200).json({ success: true, message: "Login successful." });
+
+    } catch (err) {
+        console.error("Error during admin login:", err);
+        return res.status(500).json({ success: false, message: "Internal server error." });
+    }
+});
+
+
+
+  
+  
+// Admin Route to Fetch All Users
+app.get('/admin/users', authenticateAdmin, async (req, res) => {
+  try {
+    const users = await User.find({}, { password: 0 }); // Exclude password field from the response
+
+    // Map through users and include idProofImage as a Base64-encoded string
+    const userData = users.map((user) => {
+      const userObj = user.toObject(); // Convert Mongoose Document to plain object
+      return {
+        ...userObj,
+        idProofImage: user.idProofImage
+          ? `data:image/jpeg;base64,${Buffer.from(user.idProofImage).toString('base64')}` // Encode image
+          : null,
+      };
+    });
+  
+
+
+    // Send success response with user data
+    res.status(200).json({ success: true, users: userData });
+  } catch (err) {
+    console.error('Error fetching users:', err);
+    // Send error response
+    res.status(500).json({ success: false, message: 'Failed to fetch users' });
+  }
+});
+
+
+
+
+// Handle Undefined Routes
+app.use((req, res) => {
+    res.status(404).send('Route not found');
+});
 
 // Start the Server
 app.listen(port, '0.0.0.0', () => {
     console.log(`Server running at http://0.0.0.0:${port}`);
-});
-
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (err) => {
-    console.error('Unhandled Rejection:', err);
 });
