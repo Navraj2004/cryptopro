@@ -1113,130 +1113,22 @@
                 </tr>
             `;
             
-            // Attempt to fetch wallet data from MongoDB via backend API
-            let walletData = [];
-            let totalBalance = 0;
-            let userTransactions = [];
+            // Get wallet data directly from the helper function
+            // This bypasses CORS issues by using mock data
+            const walletData = await CorsHelper.getWalletData();
             
-            try {
-                // Fetch wallet holdings from MongoDB
-                const walletResult = await CorsHelper.fetchWithCORS('/api/wallet', {
-                    method: 'GET',
-                    headers: { 
-                        'Authorization': `Bearer ${token}` 
-                    }
-                });
-                
-                if (walletResult && walletResult.success) {
-                    walletData = walletResult.holdings || [];
-                    totalBalance = walletResult.totalBalance || 0;
-                } else {
-                    console.warn("No wallet data returned from API, falling back to local storage");
-                    throw new Error("No wallet data from API");
-                }
-                
-                // Fetch transaction history from MongoDB
-                const transactionResult = await CorsHelper.fetchWithCORS('/api/transactions', {
-                    method: 'GET',
-                    headers: { 
-                        'Authorization': `Bearer ${token}` 
-                    }
-                });
-                
-                if (transactionResult && transactionResult.success) {
-                    userTransactions = transactionResult.transactions || [];
-                } else {
-                    console.warn("No transaction data returned from API, falling back to local storage");
-                }
-                
-            } catch (apiError) {
-                console.warn("API fetch failed, falling back to local storage:", apiError);
-                
-                // Fallback to local storage if MongoDB fetch fails
-                // Get user email from JWT token
-                const userEmail = JSON.parse(atob(token.split('.')[1])).email;
-                
-                // Get user from local database
-                const userData = JSON.parse(localStorage.getItem('cryptoPro_users')) || {};
-                const userId = Object.keys(userData).find(id => userData[id].email === userEmail);
-                
-                if (!userId) {
-                    throw new Error('User not found');
-                }
-
-                // Get wallet data from local storage
-                const walletsData = JSON.parse(localStorage.getItem('cryptoPro_wallets')) || {};
-                const userWallet = walletsData[userId] || {};
-                
-                // Get transactions from local storage
-                const transactionsData = JSON.parse(localStorage.getItem('cryptoPro_transactions')) || {};
-                userTransactions = Object.values(transactionsData)
-                    .filter(tx => tx.userId === userId);
-                
-                // Format wallet data for display
-                const coinIcons = {
-                    Bitcoin: 'fab fa-bitcoin',
-                    Ethereum: 'fab fa-ethereum',
-                    Dogecoin: 'fas fa-dog',
-                    Ripple: 'fas fa-water',
-                    Cardano: 'fas fa-globe',
-                    Solana: 'fas fa-sun',
-                    Polkadot: 'fas fa-dot-circle',
-                    Litecoin: 'fas fa-litecoin-sign'
-                };
-                
-                // Process each coin in the wallet
-                for (const [coin, details] of Object.entries(userWallet)) {
-                    // Get current price for the coin
-                    const coinSymbol = {
-                        Bitcoin: 'BTC',
-                        Ethereum: 'ETH',
-                        Dogecoin: 'DOGE',
-                        Ripple: 'XRP',
-                        Cardano: 'ADA',
-                        Solana: 'SOL',
-                        Polkadot: 'DOT',
-                        Litecoin: 'LTC'
-                    }[coin] || '';
-                    
-                    // Mock current price (or try to fetch if possible)
-                    let currentPrice;
-                    try {
-                        const priceData = await CorsHelper.fetchWithCORS(`/crypto-price?coin=${coinSymbol}`, { method: 'GET' });
-                        currentPrice = priceData.price;
-                    } catch (error) {
-                        // Use mock price if fetch fails
-                        currentPrice = mockCryptoPrice(coinSymbol);
-                    }
-                    
-                    const currentValue = details.quantity * currentPrice;
-                    totalBalance += currentValue;
-                    
-                    // Calculate change (using average purchase price)
-                    const avgPrice = details.quantity > 0 ? details.totalInvested / details.quantity : 0;
-                    const change = avgPrice > 0 ? ((currentPrice - avgPrice) / avgPrice) * 100 : 0;
-                    const changeClass = change >= 0 ? 'text-success' : 'text-danger';
-                    const changeText = change >= 0 ? `+${change.toFixed(2)}%` : `${change.toFixed(2)}%`;
-                    
-                    walletData.push({
-                        coin,
-                        symbol: coinSymbol,
-                        quantity: details.quantity.toFixed(8),
-                        totalPrice: currentValue.toFixed(2),
-                        icon: coinIcons[coin] || 'fas fa-coins',
-                        change: changeText,
-                        changeClass
-                    });
-                }
-            }
+            // Extract the data
+            const holdings = walletData.wallet.holdings;
+            const totalBalance = walletData.wallet.totalBalance;
+            const userTransactions = walletData.transactions.transactions;
             
             // Update the wallet table
             walletTableBody.innerHTML = "";
 
-            if (walletData.length === 0) {
+            if (holdings.length === 0) {
                 walletTableBody.innerHTML = `<tr><td colspan="4" class="text-center">No assets found in your wallet. Try buying some coins!</td></tr>`;
             } else {
-                walletData.forEach((item) => {
+                holdings.forEach((item) => {
                     const row = document.createElement("tr");
                     row.innerHTML = `
                         <td>
@@ -1340,7 +1232,7 @@
                     </div>
                     <div class="d-flex justify-content-between mb-2">
                         <span>Total Assets:</span>
-                        <span>${walletData.length}</span>
+                        <span>${holdings.length}</span>
                     </div>
                     <div class="d-flex justify-content-between">
                         <span>Total Transactions:</span>
@@ -1375,27 +1267,27 @@
         }
     }
 
-    function redirectToLogin() {
-        window.location.href = "login.html";
-    }
+function redirectToLogin() {
+            window.location.href = "login.html";
+        }
 
-    function logout() {
-        localStorage.removeItem("token"); 
-        const logoutModal = new bootstrap.Modal(document.getElementById("logoutModal"));
-        logoutModal.show();
-        setTimeout(redirectToLogin, 2000);
-    }
+        function logout() {
+            localStorage.removeItem("token"); 
+            const logoutModal = new bootstrap.Modal(document.getElementById("logoutModal"));
+            logoutModal.show();
+            setTimeout(redirectToLogin, 2000);
+        }
 
-    document.getElementById("logoutButton").addEventListener("click", function () {
-        const confirmModal = new bootstrap.Modal(document.getElementById("confirmLogoutModal"));
-        confirmModal.show();
-    });
+        document.getElementById("logoutButton").addEventListener("click", function () {
+            const confirmModal = new bootstrap.Modal(document.getElementById("confirmLogoutModal"));
+            confirmModal.show();
+        });
 
-    document.getElementById("confirmLogoutButton").addEventListener("click", function () {
-        const confirmModal = bootstrap.Modal.getInstance(document.getElementById("confirmLogoutModal"));
-        confirmModal.hide();
-        logout();
-    });
+        document.getElementById("confirmLogoutButton").addEventListener("click", function () {
+            const confirmModal = bootstrap.Modal.getInstance(document.getElementById("confirmLogoutModal"));
+            confirmModal.hide();
+            logout();
+        });
 
     document.getElementById("walletButton").addEventListener("click", () => {
         document.getElementById("walletModal").style.display = "flex";
