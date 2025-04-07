@@ -6,6 +6,13 @@
 // Base API URL
 const API_BASE_URL = 'https://cryptopro.onrender.com';
 
+// CORS Proxy URLs (in order of preference)
+const CORS_PROXIES = [
+    'https://corsproxy.io/?',
+    'https://api.allorigins.win/raw?url=',
+    'https://cors-anywhere.herokuapp.com/'
+];
+
 /**
  * Performs a fetch request with CORS handling and fallback to proxy if needed
  * @param {string} endpoint - The API endpoint (without the base URL)
@@ -24,11 +31,11 @@ async function fetchWithCORS(endpoint, options = {}) {
     const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
     
     try {
-        // First attempt - direct fetch with CORS credentials
+        // First attempt - direct fetch with CORS but WITHOUT credentials
+        // This avoids the wildcard origin issue
         const response = await fetch(url, {
             ...options,
             headers,
-            credentials: 'include',
             mode: 'cors'
         });
         
@@ -43,39 +50,38 @@ async function fetchWithCORS(endpoint, options = {}) {
     } catch (error) {
         console.warn('Direct API call failed, trying proxy:', error);
         
-        // If error is CORS-related, try using a proxy
-        if (error.message.includes('Failed to fetch') || 
-            error.toString().includes('CORS') || 
-            error.toString().includes('Network')) {
-            
-            // Use a CORS proxy
-            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-            
-            // Add origin info to headers so backend can verify
-            const proxyHeaders = {
-                ...headers,
-                'X-Requested-From': window.location.origin
-            };
-            
-            console.log('Attempting proxy fetch:', proxyUrl);
-            
-            const proxyResponse = await fetch(proxyUrl, {
-                ...options,
-                headers: proxyHeaders,
-            });
-            
-            if (!proxyResponse.ok) {
-                const proxyErrorData = await proxyResponse.json().catch(() => ({
-                    message: `Proxy server error: ${proxyResponse.status}`
-                }));
-                throw new Error(proxyErrorData.message || 'Proxy server error');
+        // Try each proxy in order until one works
+        for (const proxyBaseUrl of CORS_PROXIES) {
+            try {
+                const proxyUrl = `${proxyBaseUrl}${encodeURIComponent(url)}`;
+                console.log('Attempting proxy fetch:', proxyUrl);
+                
+                const proxyResponse = await fetch(proxyUrl, {
+                    method: options.method || 'GET',
+                    headers: {
+                        ...headers,
+                        'Origin': window.location.origin
+                    },
+                    body: options.body
+                });
+                
+                if (!proxyResponse.ok) {
+                    const proxyErrorData = await proxyResponse.json().catch(() => ({
+                        message: `Proxy server error: ${proxyResponse.status}`
+                    }));
+                    console.warn(`Proxy ${proxyBaseUrl} failed:`, proxyErrorData.message);
+                    continue; // Try next proxy
+                }
+                
+                return await proxyResponse.json();
+            } catch (proxyError) {
+                console.warn(`Proxy ${proxyBaseUrl} failed:`, proxyError);
+                // Continue to next proxy
             }
-            
-            return await proxyResponse.json();
         }
         
-        // If not CORS-related, rethrow the original error
-        throw error;
+        // If we get here, all proxies failed
+        throw new Error('All API connection methods failed. Please check your network connection and try again.');
     }
 }
 
@@ -85,7 +91,12 @@ async function fetchWithCORS(endpoint, options = {}) {
  */
 async function checkAuthentication() {
     try {
-        const result = await fetchWithCORS('/check-auth', { method: 'GET' });
+        const result = await fetchWithCORS('/check-auth', { 
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
         return result.authenticated === true;
     } catch (error) {
         console.error('Authentication check failed:', error);
@@ -122,10 +133,17 @@ async function getUserData() {
 async function loginUser(email, password, isAdmin = false) {
     const endpoint = isAdmin ? '/api/admin/login' : '/login';
     
-    return await fetchWithCORS(endpoint, {
+    const result = await fetchWithCORS(endpoint, {
         method: 'POST',
         body: JSON.stringify({ email, password })
     });
+    
+    // Store token if provided in the response
+    if (result.token) {
+        localStorage.setItem('token', result.token);
+    }
+    
+    return result;
 }
 
 /**
@@ -134,156 +152,44 @@ async function loginUser(email, password, isAdmin = false) {
  * @returns {Promise<Object>} - Registration result
  */
 async function registerUser(formData) {
-    const url = `${API_BASE_URL}/register`;
+    // Convert FormData to a regular object for easier handling with proxies
+    const formDataObj = {};
+    for (const [key, value] of formData.entries()) {
+        // Skip file for now - we'll handle it separately
+        if (!(value instanceof File)) {
+            formDataObj[key] = value;
+        }
+    }
     
-    try {
-        // For file uploads, we need to use FormData and can't use JSON
-        // Direct fetch with CORS credentials
-        const response = await fetch(url, {
-            method: 'POST',
-            body: formData,
-            credentials: 'include',
-            mode: 'cors'
+    // Check if we have a file to upload
+    const idProofFile = formData.get('idProof');
+    if (idProofFile && idProofFile instanceof File) {
+        // Convert file to base64 to send through JSON
+        formDataObj.idProofFilename = idProofFile.name;
+        formDataObj.idProofType = idProofFile.type;
+        
+        // Read file as base64
+        const base64File = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result.split(',')[1]);
+            reader.readAsDataURL(idProofFile);
         });
         
-        // Try to parse as JSON first
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-            const result = await response.json();
-            
-            if (!response.ok) {
-                throw new Error(result.message || 'Registration failed');
-            }
-            
-            return result;
-        } else {
-            // Handle text response
-            const textResult = await response.text();
-            
-            if (!response.ok) {
-                throw new Error(textResult || 'Registration failed');
-            }
-            
-            // Try to parse text as JSON if it looks like JSON
-            if (textResult.startsWith('{') && textResult.endsWith('}')) {
-                try {
-                    return JSON.parse(textResult);
-                } catch (e) {
-                    // If parsing fails, return as text response
-                    return { success: response.ok, message: textResult };
-                }
-            }
-            
-            return { success: response.ok, message: textResult };
-        }
-    } catch (error) {
-        console.warn('Direct registration failed, trying proxy:', error);
-        
-        // If error is CORS-related, try using a different approach
-        if (error.message.includes('Failed to fetch') || 
-            error.toString().includes('CORS') || 
-            error.toString().includes('Network')) {
-            
-            // For file uploads with CORS issues, we need a different approach
-            // Create a new form with a hidden iframe to submit to avoid CORS
-            return new Promise((resolve, reject) => {
-                const iframe = document.createElement('iframe');
-                iframe.name = 'cors_iframe';
-                iframe.style.display = 'none';
-                document.body.appendChild(iframe);
-                
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = url;
-                form.target = 'cors_iframe';
-                form.enctype = 'multipart/form-data';
-                form.style.display = 'none';
-                
-                // Add all fields from formData to the form
-                for (const [key, value] of formData.entries()) {
-                    const input = document.createElement('input');
-                    input.type = 'hidden';
-                    input.name = key;
-                    
-                    // Handle File objects specially
-                    if (value instanceof File) {
-                        // For files, we need to create a special input
-                        input.type = 'file';
-                        
-                        // Use a FileReader to convert to DataURL as a fallback
-                        const reader = new FileReader();
-                        reader.onload = function(e) {
-                            // Create a data URL input
-                            const dataUrlInput = document.createElement('input');
-                            dataUrlInput.type = 'hidden';
-                            dataUrlInput.name = `${key}_dataUrl`;
-                            dataUrlInput.value = e.target.result;
-                            form.appendChild(dataUrlInput);
-                        };
-                        reader.readAsDataURL(value);
-                    } else {
-                        input.value = value;
-                    }
-                    
-                    form.appendChild(input);
-                }
-                
-                // Add special field to indicate this is from the CORS helper
-                const originInput = document.createElement('input');
-                originInput.type = 'hidden';
-                originInput.name = 'X-Requested-From';
-                originInput.value = window.location.origin;
-                form.appendChild(originInput);
-                
-                // Handle the iframe's response
-                iframe.onload = function() {
-                    try {
-                        const iframeContent = iframe.contentDocument || iframe.contentWindow.document;
-                        const responseText = iframeContent.body.innerText;
-                        
-                        // Try to parse as JSON
-                        try {
-                            const jsonResponse = JSON.parse(responseText);
-                            resolve(jsonResponse);
-                        } catch (e) {
-                            // If not JSON, return success with message
-                            resolve({ success: true, message: responseText });
-                        }
-                    } catch (e) {
-                        // If we can't access iframe content due to CORS, assume success
-                        resolve({ success: true, message: 'Registration request sent. Please check your email for confirmation.' });
-                    } finally {
-                        // Clean up
-                        setTimeout(() => {
-                            document.body.removeChild(iframe);
-                            document.body.removeChild(form);
-                        }, 100);
-                    }
-                };
-                
-                // Handle errors
-                iframe.onerror = function() {
-                    reject(new Error('Registration request failed'));
-                    document.body.removeChild(iframe);
-                    document.body.removeChild(form);
-                };
-                
-                document.body.appendChild(form);
-                form.submit();
-            });
-        }
-        
-        // If not CORS-related, rethrow the original error
-        throw error;
+        formDataObj.idProofBase64 = base64File;
     }
+    
+    // Use the regular CORS helper with the converted data
+    return await fetchWithCORS('/register', {
+        method: 'POST',
+        body: JSON.stringify(formDataObj)
+    });
 }
 
-// Export functions for use in other files
-window.corsHelper = {
+// Export the helper functions for use in other scripts
+window.CorsHelper = {
     fetchWithCORS,
     checkAuthentication,
     getUserData,
     loginUser,
-    registerUser,
-    API_BASE_URL
+    registerUser
 }; 
