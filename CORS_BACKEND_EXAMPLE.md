@@ -2,6 +2,15 @@
 
 This document provides sample code for implementing CORS (Cross-Origin Resource Sharing) support on the CryptoPro backend server to allow communication between the frontend at `https://cryptopro-1.onrender.com` and the backend at `https://cryptopro.onrender.com`.
 
+## Current Error You're Facing
+
+The error message indicates two main issues:
+
+1. The backend is using a wildcard (`*`) for `Access-Control-Allow-Origin` when credentials are included in the request.
+2. The CORS policy is blocking the custom header `X-Requested-From` used by the proxy fallback mechanism.
+
+These can be fixed with the proper server-side configuration below.
+
 ## Express.js Implementation
 
 ```javascript
@@ -16,7 +25,7 @@ const corsOptions = {
     'http://localhost:3000'  // For local development
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With', 'X-Requested-From'],
   credentials: true,
   maxAge: 86400  // 24 hours
 };
@@ -52,7 +61,7 @@ const server = http.createServer((req, res) => {
   // Set CORS headers for all responses
   res.setHeader('Access-Control-Allow-Origin', 'https://cryptopro-1.onrender.com');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-Requested-With');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-Requested-With, X-Requested-From');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
   
@@ -77,7 +86,7 @@ server.listen(process.env.PORT || 3000);
 // Allow from our frontend domain
 header("Access-Control-Allow-Origin: https://cryptopro-1.onrender.com");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, Accept, X-Requested-With");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, Accept, X-Requested-With, X-Requested-From");
 header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Max-Age: 86400"); // 24 hours
 
@@ -108,7 +117,7 @@ cors = CORS(
             "http://localhost:3000"  # For local development
         ],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization", "Accept", "X-Requested-With"],
+        "allow_headers": ["Content-Type", "Authorization", "Accept", "X-Requested-With", "X-Requested-From"],
         "supports_credentials": True,
         "max_age": 86400  # 24 hours
     }}
@@ -128,6 +137,20 @@ After implementing these changes, you should test your CORS configuration by:
 2. Accessing your frontend from `https://cryptopro-1.onrender.com`
 3. Opening your browser's developer tools (F12) and checking the Network tab for any CORS errors
 4. Testing all main functionality: login, registration, fetching prices, wallet data, etc.
+
+## Common CORS Issues & Solutions
+
+1. **Using wildcard with credentials**: You cannot use `Access-Control-Allow-Origin: *` with `credentials: true`. You must specify the exact origin.
+
+2. **Missing preflight handling**: Always respond to `OPTIONS` requests with appropriate headers and a 204 status code.
+
+3. **Missing headers in allowedHeaders**: Make sure all custom headers (like `X-Requested-From`) are included in the list of allowed headers.
+
+4. **URL mismatch**: Ensure the exact origin URL is used (e.g., with or without trailing slash).
+
+5. **HTTP vs HTTPS**: Make sure you're matching the correct protocol in your origin configuration.
+
+6. **Wrong case in headers**: Header names are case-sensitive in some environments.
 
 If you continue to have CORS issues after implementing the server-side configuration, check:
 
