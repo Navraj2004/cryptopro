@@ -12,6 +12,8 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- AOS Animation Library -->
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <!-- CORS Helper Script -->
+    <script src="js/cors-helper.js"></script>
     <style>
         :root {
             --primary-color: #3a7bd5;
@@ -351,7 +353,6 @@
         loginText.textContent = "Logging in, please wait...";
         loginSpinner.classList.remove("d-none");
 
-        const API_URL = "https://cryptopro.onrender.com"; // Live backend API
         const email = document.getElementById("username")?.value.trim();
         const password = document.getElementById("password")?.value.trim();
         const errorMessage = document.getElementById("error-message");
@@ -376,18 +377,10 @@
         }
 
         try {
-            // API call to login
-            const response = await fetch(`${API_URL}/login`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ email, password }),
-            });
+            // Use CORS helper for login
+            const result = await corsHelper.loginUser(email, password, false);
 
-            const result = await response.json();
-
-            if (!response.ok || !result.success) {
+            if (!result.success) {
                 errorMessage.style.display = "block";
                 errorMessage.textContent = result.message || "Login failed. Please try again.";
                 // Reset button state
@@ -407,7 +400,7 @@
             }
 
             // Fix: Access result.name instead of result.user.name
-            welcomeMessage.textContent = `Welcome back, ${result.name}! You have successfully logged in.`;
+            welcomeMessage.textContent = `Welcome back, ${result.name || 'User'}! You have successfully logged in.`;
             
             const successModal = new bootstrap.Modal(successModalElement);
             successModal.show();
@@ -420,7 +413,7 @@
         } catch (err) {
             console.error("Error during login:", err);
             errorMessage.style.display = "block";
-            errorMessage.textContent = "An unexpected error occurred. Please try again later.";
+            errorMessage.textContent = "Login failed: " + (err.message || "An unexpected error occurred. Please try again later.");
             // Reset button state
             loginBtn.disabled = false;
             loginText.textContent = "Login";

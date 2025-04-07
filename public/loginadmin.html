@@ -14,6 +14,8 @@
     <!-- AOS Animation Library -->
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    <!-- CORS Helper Script -->
+    <script src="js/cors-helper.js"></script>
     <style>
         :root {
             --primary-color: #3a7bd5;
@@ -258,7 +260,6 @@
         $('#loginForm').on('submit', function (e) {
             e.preventDefault();
 
-            const API_URL = "https://cryptopro.onrender.com/api/admin/login"; // Updated API endpoint
             const email = $('#email').val().trim();
             const password = $('#password').val().trim();
             const $errorMsg = $('#error-message');
@@ -274,37 +275,37 @@
 
             $loginButton.prop('disabled', true).text('Logging in...');
 
-            fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    $('#successModal').modal('show'); // Show success modal
-                    // Redirect to admin.html after a short delay
-                    setTimeout(() => {
-                        window.location.href = 'admin.html';
-                    }, 2000);
-                } else {
-                    // Always show a clear error message
-                    if (data.message === "Incorrect password" || data.message.includes("password")) {
-                        $errorMsg.text("Wrong password! Please try again.").show();
-                    } else if (data.message === "User not found" || data.message.includes("not found")) {
-                        $errorMsg.text("No admin found with this email.").show();
+            // Use the CORS helper to handle login
+            corsHelper.loginUser(email, password, true) // true for admin login
+                .then(data => {
+                    if (data.success) {
+                        $('#successModal').modal('show'); // Show success modal
+                        // Store token if it exists
+                        if (data.token) {
+                            localStorage.setItem('adminToken', data.token);
+                        }
+                        // Redirect to admin.html after a short delay
+                        setTimeout(() => {
+                            window.location.href = 'admin.html';
+                        }, 2000);
                     } else {
-                        $errorMsg.text("Login failed: " + (data.message || "Please try again")).show();
+                        // Always show a clear error message
+                        if (data.message === "Incorrect password" || data.message?.includes("password")) {
+                            $errorMsg.text("Wrong password! Please try again.").show();
+                        } else if (data.message === "User not found" || data.message?.includes("not found")) {
+                            $errorMsg.text("No admin found with this email.").show();
+                        } else {
+                            $errorMsg.text("Login failed: " + (data.message || "Please try again")).show();
+                        }
                     }
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                $errorMsg.text('An error occurred while logging in. Please try again.').show();
-            })
-            .finally(() => {
-                $loginButton.prop('disabled', false).text('Secure Login');
-            });
+                })
+                .catch(err => {
+                    console.error(err);
+                    $errorMsg.text('Login failed: ' + (err.message || 'Server error. Please try again later.')).show();
+                })
+                .finally(() => {
+                    $loginButton.prop('disabled', false).text('Secure Login');
+                });
         });
     </script>
 

@@ -14,6 +14,8 @@
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     <!-- Migration CSS -->
     <link href="css/migration.css" rel="stylesheet">
+    <!-- CORS Helper Script -->
+    <script src="js/cors-helper.js"></script>
     <style>
         :root {
             --primary-color: #3a7bd5;
@@ -954,26 +956,21 @@
     // Function to fetch price for a specific cryptocurrency
     async function fetchCryptoPrice(symbol, cardElement) {
         try {
-            const response = await fetch(`${API_URL}/crypto-price?coin=${symbol}`);
-            const data = await response.json();
+            const data = await corsHelper.fetchWithCORS(`/crypto-price?coin=${symbol}`, {
+                method: 'GET'
+            });
             
-            if (response.ok) {
-                const priceValue = data.price;
-                const previousPrice = data.previousPrice || priceValue * (1 - (Math.random() * 0.1 - 0.05)); // Fallback
-                const change = ((priceValue - previousPrice) / previousPrice) * 100;
-                
-                // Update card with real price
-                updateCryptoCard(cardElement, priceValue, change);
-            } else {
-                console.error(`Failed to fetch price for ${symbol}:`, data.message);
-                // Show error state on card
-                cardElement.querySelector('.crypto-price-value').textContent = 'Price Unavailable';
-                cardElement.querySelector('.crypto-price-change').textContent = 'N/A';
-                cardElement.querySelector('.crypto-price-change').classList.remove('negative');
-            }
+            const priceValue = data.price;
+            const previousPrice = data.previousPrice || priceValue * (1 - (Math.random() * 0.1 - 0.05)); // Fallback
+            const change = ((priceValue - previousPrice) / previousPrice) * 100;
+            
+            // Update card with real price
+            updateCryptoCard(cardElement, priceValue, change);
         } catch (error) {
             console.error(`Error fetching price for ${symbol}:`, error);
             cardElement.querySelector('.crypto-price-value').textContent = 'Error';
+            cardElement.querySelector('.crypto-price-change').textContent = 'N/A';
+            cardElement.querySelector('.crypto-price-change').classList.remove('negative');
         }
     }
     
@@ -1048,12 +1045,14 @@
         }
 
         try {
-            const response = await fetch(`${API_URL}/user`, {
-                headers: { Authorization: `Bearer ${token}` },
+            const result = await corsHelper.fetchWithCORS('/user', {
+                method: 'GET',
+                headers: { 
+                    'Authorization': `Bearer ${token}` 
+                }
             });
 
-            const result = await response.json();
-            if (response.ok && result.success) {
+            if (result.success) {
                 document.getElementById("userName").textContent = result.user.name;
             } else {
                 alert(result.message || "Failed to fetch user details.");
@@ -1091,25 +1090,20 @@
             `;
             
             // Fetch wallet data from server
-            const walletResponse = await fetch(`${API_URL}/wallet`, {
-                headers: { Authorization: `Bearer ${token}` }
+            const walletResult = await corsHelper.fetchWithCORS('/wallet', {
+                method: 'GET',
+                headers: { 
+                    'Authorization': `Bearer ${token}` 
+                }
             });
             
             // Fetch transaction data from server
-            const transactionResponse = await fetch(`${API_URL}/transactions`, {
-                headers: { Authorization: `Bearer ${token}` }
+            const transactionResult = await corsHelper.fetchWithCORS('/transactions', {
+                method: 'GET',
+                headers: { 
+                    'Authorization': `Bearer ${token}` 
+                }
             });
-            
-            if (!walletResponse.ok) {
-                throw new Error('Failed to fetch wallet data');
-            }
-            
-            if (!transactionResponse.ok) {
-                throw new Error('Failed to fetch transaction data');
-            }
-            
-            const walletResult = await walletResponse.json();
-            const transactionResult = await transactionResponse.json();
             
             const walletData = walletResult.walletData || [];
             const totalBalance = walletResult.totalBalance || 0;
