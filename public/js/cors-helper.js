@@ -28,7 +28,7 @@ function sleep(ms) {
 
 /**
  * Special handler for wallet data that bypasses proxies and directly
- * returns mock wallet data since the server API is not available
+ * returns wallet data from the database
  */
 async function getWalletData() {
     const token = localStorage.getItem('token');
@@ -46,84 +46,143 @@ async function getWalletData() {
             throw new Error('Invalid token: missing user identifier');
         }
         
-        // Create mock wallet data that would normally come from the server
-        const mockWalletData = {
-            success: true,
-            holdings: [
-                {
-                    coin: "Bitcoin",
-                    symbol: "BTC",
-                    quantity: "0.02500000",
-                    totalPrice: "1250.00",
-                    icon: "fab fa-bitcoin",
-                    change: "+2.35%",
-                    changeClass: "text-success"
-                },
-                {
-                    coin: "Ethereum",
-                    symbol: "ETH",
-                    quantity: "1.50000000",
-                    totalPrice: "4500.00",
-                    icon: "fab fa-ethereum",
-                    change: "-0.78%",
-                    changeClass: "text-danger"
-                },
-                {
-                    coin: "Solana",
-                    symbol: "SOL",
-                    quantity: "15.00000000",
-                    totalPrice: "2250.00",
-                    icon: "fas fa-sun",
-                    change: "+5.21%",
-                    changeClass: "text-success"
-                }
-            ],
-            totalBalance: 8000.00
+        // Get user from database
+        const userData = JSON.parse(localStorage.getItem('cryptoPro_users')) || {};
+        const userKey = Object.keys(userData).find(id => userData[id].email === email);
+        
+        if (!userKey) {
+            throw new Error('User not found in database');
+        }
+        
+        // Get wallet data from database
+        const walletsData = JSON.parse(localStorage.getItem('cryptoPro_wallets')) || {};
+        const userWallet = walletsData[userKey] || {};
+        
+        // Get transactions from database
+        const transactionsData = JSON.parse(localStorage.getItem('cryptoPro_transactions')) || {};
+        const userTransactions = Object.values(transactionsData)
+            .filter(tx => tx.userId === userKey);
+        
+        // Format wallet data for display
+        const coinIcons = {
+            Bitcoin: 'fab fa-bitcoin',
+            Ethereum: 'fab fa-ethereum',
+            Dogecoin: 'fas fa-dog',
+            Ripple: 'fas fa-water',
+            Cardano: 'fas fa-globe',
+            Solana: 'fas fa-sun',
+            Polkadot: 'fas fa-dot-circle',
+            Litecoin: 'fas fa-litecoin-sign'
         };
         
-        // Create mock transaction data
-        const mockTransactions = {
-            success: true,
-            transactions: [
-                {
-                    type: "Buy",
-                    coin: "Bitcoin",
-                    symbol: "BTC",
-                    quantity: 0.025,
-                    price: 50000,
-                    totalPrice: 1250,
-                    date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days ago
-                    status: "Completed"
-                },
-                {
-                    type: "Buy",
-                    coin: "Ethereum",
-                    symbol: "ETH",
-                    quantity: 1.5,
-                    price: 3000,
-                    totalPrice: 4500,
-                    date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
-                    status: "Completed"
-                },
-                {
-                    type: "Buy",
-                    coin: "Solana",
-                    symbol: "SOL",
-                    quantity: 15,
-                    price: 150,
-                    totalPrice: 2250,
-                    date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
-                    status: "Completed"
-                }
-            ]
-        };
+        // Process each coin in the wallet
+        const holdings = [];
+        let totalBalance = 0;
+        
+        for (const [coin, details] of Object.entries(userWallet)) {
+            // Get current price for the coin
+            const coinSymbol = {
+                Bitcoin: 'BTC',
+                Ethereum: 'ETH',
+                Dogecoin: 'DOGE',
+                Ripple: 'XRP',
+                Cardano: 'ADA',
+                Solana: 'SOL',
+                Polkadot: 'DOT',
+                Litecoin: 'LTC'
+            }[coin] || '';
+            
+            // Get current price
+            let currentPrice;
+            try {
+                const priceData = await fetchWithCORS(`/crypto-price?coin=${coinSymbol}`, { method: 'GET' });
+                currentPrice = priceData.price;
+            } catch (error) {
+                // Use mock price if fetch fails
+                currentPrice = mockCryptoPrice(coinSymbol);
+            }
+            
+            const currentValue = details.quantity * currentPrice;
+            totalBalance += currentValue;
+            
+            // Calculate change (using average purchase price)
+            const avgPrice = details.quantity > 0 ? details.totalInvested / details.quantity : 0;
+            const change = avgPrice > 0 ? ((currentPrice - avgPrice) / avgPrice) * 100 : 0;
+            const changeClass = change >= 0 ? 'text-success' : 'text-danger';
+            const changeText = change >= 0 ? `+${change.toFixed(2)}%` : `${change.toFixed(2)}%`;
+            
+            holdings.push({
+                coin,
+                symbol: coinSymbol,
+                quantity: details.quantity.toFixed(8),
+                totalPrice: currentValue.toFixed(2),
+                icon: coinIcons[coin] || 'fas fa-coins',
+                change: changeText,
+                changeClass
+            });
+        }
+        
+        // Format transactions
+        const formattedTransactions = userTransactions.map(tx => {
+            const isBuy = tx.type === 'Buy';
+            const date = new Date(tx.date || tx.createdAt).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            
+            let coinName = tx.coin || '';
+            let coinSymbol = tx.symbol || '';
+            
+            if (tx.cryptocurrency && tx.cryptocurrency.includes('(')) {
+                const parts = tx.cryptocurrency.split('(');
+                coinName = parts[0].trim();
+                coinSymbol = parts[1].replace(')', '').trim();
+            }
+            
+            let amountText = '';
+            if (tx.amount && typeof tx.amount === 'string') {
+                amountText = tx.amount;
+            } else if (tx.quantity) {
+                amountText = `${tx.quantity} ${coinSymbol}`;
+            }
+            
+            let priceText = '';
+            if (tx.price && typeof tx.price === 'string') {
+                priceText = tx.price;
+            } else if (tx.totalPrice) {
+                priceText = `$${parseFloat(tx.totalPrice).toFixed(2)}`;
+            }
+            
+            return {
+                type: isBuy ? 'Buy' : 'Sell',
+                coin: coinName,
+                symbol: coinSymbol,
+                quantity: tx.quantity || 0,
+                price: tx.price || 0,
+                totalPrice: tx.totalPrice || 0,
+                date: tx.date || tx.createdAt,
+                status: tx.status || 'Completed',
+                amountText,
+                priceText
+            };
+        });
         
         return {
-            wallet: mockWalletData,
-            transactions: mockTransactions
+            wallet: {
+                success: true,
+                holdings,
+                totalBalance
+            },
+            transactions: {
+                success: true,
+                transactions: formattedTransactions
+            }
         };
     } catch (error) {
-        console.error("Error creating mock wallet data:", error);
+        console.error("Error creating wallet data:", error);
         throw error;
     }
 }
