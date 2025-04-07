@@ -3,7 +3,8 @@
  * This file handles the migration of wallet data from localStorage to server-side storage
  */
 
-const API_BASE_URL = 'https://cryptopro.onrender.com';
+// Use the CorsHelper.API_BASE_URL if available, otherwise set it
+const API_BASE_URL = window.CorsHelper?.API_BASE_URL || 'https://cryptopro.onrender.com';
 
 /**
  * Migrates the user's wallet data from localStorage to the server

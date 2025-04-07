@@ -191,5 +191,6 @@ window.CorsHelper = {
     checkAuthentication,
     getUserData,
     loginUser,
-    registerUser
+    registerUser,
+    API_BASE_URL
 }; 

@@ -508,7 +508,7 @@
             Litecoin: 'fas fa-litecoin-sign'
         };
         
-        const API_BASE_URL = 'https://cryptopro.onrender.com';
+        const API_BASE_URL = window.CorsHelper?.API_BASE_URL || 'https://cryptopro.onrender.com';
 
         /* Fetch Live Price */
         async function fetchLivePrice() {
