@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sell Cryptocurrency</title>
+    <title>Sell Cryptocurrency - CryptoPro</title>
     <!-- Modern fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Font Awesome for icons -->
@@ -14,6 +14,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Migration CSS -->
+    <link href="css/migration.css" rel="stylesheet">
     <style>
         :root {
             --primary-color: #3a7bd5;
@@ -625,7 +627,7 @@
         }
 
         /* Confirm Sale Function */
-        function confirmSale() {
+        async function confirmSale() {
             if (!currentUser) {
                 alert('Please log in to sell cryptocurrency');
                 return;
@@ -651,37 +653,68 @@
                 return;
             }
             
-            // Create transaction object
-            const transaction = {
-                userId: currentUser.id || 'user123',
-                user: currentUser.name || 'User',
-                email: currentUser.email,
-                cryptocurrency: `${cryptoName} (${coinSymbols[cryptoName] || ''})`,
-                amount: `${quantity} ${coinSymbols[cryptoName] || ''}`,
-                price: `$${totalPrice.toFixed(2)}`,
-                type: 'Sell',
-                date: new Date().toISOString().slice(0, 16).replace('T', ' '),
-                status: 'Completed'
-            };
-            
-            // Store transaction in database
-            Database.transactions.add(transaction);
-            
-            // Update modal content
-            document.getElementById('modalCryptoName').textContent = `${cryptoName} (${coinSymbols[cryptoName]})`;
-            document.getElementById('modalQuantity').textContent = `${quantity} ${coinSymbols[cryptoName]}`;
-            document.getElementById('modalTotalPrice').textContent = `$${totalPrice.toFixed(2)}`;
-            
-            // Show success modal
-            const successModal = new bootstrap.Modal(document.getElementById('successModal'));
-            successModal.show();
-            
-            // Update available quantity
-            const newQuantity = availableQuantity - quantity;
-            document.getElementById('availableQuantity').value = newQuantity.toFixed(8);
-            
-            // Redirect to dashboard after 2 seconds
-            setTimeout(redirectToDashboard, 2000);
+            try {
+                // Add a loading indicator to the sell button
+                const sellButton = document.getElementById('confirmSaleBtn');
+                const originalButtonText = sellButton.innerHTML;
+                sellButton.disabled = true;
+                sellButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+                
+                // Create transaction data for backend
+                const transactionData = {
+                    coin: cryptoName,
+                    symbol: coinSymbols[cryptoName] || '',
+                    quantity,
+                    price: currentPrice,
+                    totalPrice,
+                    type: 'Sell',
+                    date: new Date().toISOString(),
+                    status: 'Completed'
+                };
+                
+                // Send sell transaction to backend API
+                const token = localStorage.getItem('token');
+                const response = await fetch(`${API_BASE_URL}/sell`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(transactionData)
+                });
+                
+                // Restore button state
+                sellButton.disabled = false;
+                sellButton.innerHTML = originalButtonText;
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    // Update modal content
+                    document.getElementById('modalCryptoName').textContent = `${cryptoName} (${coinSymbols[cryptoName]})`;
+                    document.getElementById('modalQuantity').textContent = `${quantity} ${coinSymbols[cryptoName]}`;
+                    document.getElementById('modalTotalPrice').textContent = `$${totalPrice.toFixed(2)}`;
+                    
+                    // Show success modal
+                    const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+                    successModal.show();
+                    
+                    // Updated quantity will now come from the server on next fetch
+                    
+                    // Redirect to dashboard after 2 seconds
+                    setTimeout(redirectToDashboard, 2000);
+                } else {
+                    alert(result.message || 'Failed to complete the sale. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error processing sale:', error);
+                alert('An error occurred while processing your sale. Please try again.');
+                
+                // Restore button if error occurs
+                const sellButton = document.getElementById('confirmSaleBtn');
+                sellButton.disabled = false;
+                sellButton.innerHTML = 'Confirm Sale';
+            }
         }
 
         /* Redirect To Dashboard */
@@ -703,5 +736,7 @@
             fetchUserDetails();
         };
     </script>
+    <!-- Wallet Migration Utility -->
+    <script src="js/wallet-migration.js"></script>
 </body>
 </html>

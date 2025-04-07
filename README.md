@@ -13,6 +13,7 @@ A professional cryptocurrency trading platform with real-time market data, secur
 - Secure user authentication and registration
 - Buy and sell cryptocurrency with professional market interfaces
 - Portfolio management with transaction history
+- Cross-device wallet synchronization
 - Admin dashboard for user management and analytics
 - Dark theme UI with responsive design
 
@@ -23,6 +24,17 @@ A professional cryptocurrency trading platform with real-time market data, secur
 - REST API for backend communication
 - Chart.js for cryptocurrency price visualization
 - Font Awesome for icons
+- Server-side wallet data storage
+
+## New in May 2024
+
+- **Cross-Device Wallet Synchronization**: Access your crypto wallet with real-time updates across all your devices
+- **Enhanced Transaction Security**: All buy/sell transactions are now processed and verified server-side
+- **Improved Portfolio Management**: View your complete transaction history synchronized from our secure database
+
+## Migration
+
+If you are an existing user, please see the [Migration Guide](MIGRATION_GUIDE.md) for information on transitioning to our new server-based wallet system.
 
 ## Getting Started
 

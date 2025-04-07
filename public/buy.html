@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Buy Cryptocurrency</title>
+  <title>Buy Cryptocurrency - CryptoPro</title>
   <!-- Modern fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <!-- Font Awesome for icons -->
@@ -14,6 +14,8 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Migration CSS -->
+  <link href="css/migration.css" rel="stylesheet">
   <style>
     :root {
       --primary-color: #3a7bd5;
@@ -632,12 +634,23 @@
       }
       
       try {
-        // Create purchase data
+        // Create purchase data with all necessary details
         const purchaseData = { 
-          coin: cryptoName, 
+          coin: cryptoName,
+          symbol: coinSymbols[cryptoName] || '',
           quantity, 
-          totalPrice 
+          price: currentPrice,
+          totalPrice,
+          type: 'Buy',
+          date: new Date().toISOString(),
+          status: 'Completed'
         };
+        
+        // Add a loading indicator to the purchase button
+        const purchaseButton = document.querySelector('.btn-primary');
+        const originalButtonText = purchaseButton.innerHTML;
+        purchaseButton.disabled = true;
+        purchaseButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
         
         // Send purchase to backend API
         const response = await fetch('https://cryptopro.onrender.com/buy', {
@@ -651,23 +664,11 @@
         
         const result = await response.json();
         
+        // Restore button state
+        purchaseButton.disabled = false;
+        purchaseButton.innerHTML = originalButtonText;
+        
         if (response.ok) {
-          // Create transaction for local storage
-          const transaction = {
-            userId: currentUser.id || 'user123', // Use a default ID if not available
-            user: currentUser.name || 'User',
-            email: currentUser.email,
-            cryptocurrency: `${cryptoName} (${coinSymbols[cryptoName] || ''})`,
-            amount: `${quantity} ${coinSymbols[cryptoName] || ''}`,
-            price: `$${totalPrice.toFixed(2)}`,
-            type: 'Buy',
-            date: new Date().toISOString().slice(0, 16).replace('T', ' '),
-            status: 'Completed'
-          };
-          
-          // Add transaction to database
-          Database.transactions.add(transaction);
-          
           // Show success modal
           document.getElementById('modalCryptoName').textContent = `${cryptoName} (${coinSymbols[cryptoName]})`;
           document.getElementById('modalQuantity').textContent = `${quantity} ${coinSymbols[cryptoName]}`;
@@ -685,6 +686,11 @@
       } catch (err) {
         console.error('Error during purchase:', err);
         alert('An error occurred while processing your purchase.');
+        
+        // Restore button if error occurs
+        const purchaseButton = document.querySelector('.btn-primary');
+        purchaseButton.disabled = false;
+        purchaseButton.innerHTML = '<i class="fas fa-check-circle me-2"></i>Confirm Purchase';
       }
     }
 
@@ -1052,5 +1058,7 @@
       fetchUserDetails();
     };
   </script>
+  <!-- Wallet Migration Utility -->
+  <script src="js/wallet-migration.js"></script>
 </body>
 </html>
