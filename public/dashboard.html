@@ -1112,26 +1112,86 @@
                     </td>
                 </tr>
             `;
+
+            // Get user email from JWT token
+            const userEmail = JSON.parse(atob(token.split('.')[1])).email;
             
-            // Fetch wallet data from server
-            const walletResult = await CorsHelper.fetchWithCORS('/wallet', {
-                method: 'GET',
-                headers: { 
-                    'Authorization': `Bearer ${token}` 
+            // Get user from local database
+            const userData = JSON.parse(localStorage.getItem('cryptoPro_users')) || {};
+            const userId = Object.keys(userData).find(id => userData[id].email === userEmail);
+            
+            if (!userId) {
+                throw new Error('User not found');
+            }
+
+            // Get wallet data from local storage
+            const walletsData = JSON.parse(localStorage.getItem('cryptoPro_wallets')) || {};
+            const userWallet = walletsData[userId] || {};
+            
+            // Get transactions from local storage
+            const transactionsData = JSON.parse(localStorage.getItem('cryptoPro_transactions')) || {};
+            const userTransactions = Object.values(transactionsData)
+                .filter(tx => tx.userId === userId);
+            
+            // Format wallet data for display
+            const walletData = [];
+            let totalBalance = 0;
+            
+            // Define coin icons for display
+            const coinIcons = {
+                Bitcoin: 'fab fa-bitcoin',
+                Ethereum: 'fab fa-ethereum',
+                Dogecoin: 'fas fa-dog',
+                Ripple: 'fas fa-water',
+                Cardano: 'fas fa-globe',
+                Solana: 'fas fa-sun',
+                Polkadot: 'fas fa-dot-circle',
+                Litecoin: 'fas fa-litecoin-sign'
+            };
+            
+            // Process each coin in the wallet
+            for (const [coin, details] of Object.entries(userWallet)) {
+                // Get current price for the coin
+                const coinSymbol = {
+                    Bitcoin: 'BTC',
+                    Ethereum: 'ETH',
+                    Dogecoin: 'DOGE',
+                    Ripple: 'XRP',
+                    Cardano: 'ADA',
+                    Solana: 'SOL',
+                    Polkadot: 'DOT',
+                    Litecoin: 'LTC'
+                }[coin] || '';
+                
+                // Mock current price (or try to fetch if possible)
+                let currentPrice;
+                try {
+                    const priceData = await CorsHelper.fetchWithCORS(`/crypto-price?coin=${coinSymbol}`, { method: 'GET' });
+                    currentPrice = priceData.price;
+                } catch (error) {
+                    // Use mock price if fetch fails
+                    currentPrice = mockCryptoPrice(coinSymbol);
                 }
-            });
-            
-            // Fetch transaction data from server
-            const transactionResult = await CorsHelper.fetchWithCORS('/transactions', {
-                method: 'GET',
-                headers: { 
-                    'Authorization': `Bearer ${token}` 
-                }
-            });
-            
-            const walletData = walletResult.walletData || [];
-            const totalBalance = walletResult.totalBalance || 0;
-            const transactions = transactionResult.transactions || [];
+                
+                const currentValue = details.quantity * currentPrice;
+                totalBalance += currentValue;
+                
+                // Calculate change (using average purchase price)
+                const avgPrice = details.quantity > 0 ? details.totalInvested / details.quantity : 0;
+                const change = avgPrice > 0 ? ((currentPrice - avgPrice) / avgPrice) * 100 : 0;
+                const changeClass = change >= 0 ? 'text-success' : 'text-danger';
+                const changeText = change >= 0 ? `+${change.toFixed(2)}%` : `${change.toFixed(2)}%`;
+                
+                walletData.push({
+                    coin,
+                    symbol: coinSymbol,
+                    quantity: details.quantity.toFixed(8),
+                    totalPrice: currentValue.toFixed(2),
+                    icon: coinIcons[coin] || 'fas fa-coins',
+                    change: changeText,
+                    changeClass
+                });
+            }
             
             // Update the wallet table
             walletTableBody.innerHTML = "";
@@ -1162,17 +1222,17 @@
             const transactionHistory = document.getElementById('transactionHistory');
             transactionHistory.innerHTML = '';
             
-            if (transactions.length === 0) {
+            if (userTransactions.length === 0) {
                 transactionHistory.innerHTML = `<div class="text-center text-muted py-4">No transaction history found. Start trading to see your activity here!</div>`;
             } else {
                 // Sort transactions by date (newest first)
-                transactions.sort((a, b) => {
+                userTransactions.sort((a, b) => {
                     const dateA = new Date(a.date || a.createdAt);
                     const dateB = new Date(b.date || b.createdAt);
                     return dateB - dateA;
                 });
                 
-                transactions.forEach(tx => {
+                userTransactions.forEach(tx => {
                     const transactionItem = document.createElement('div');
                     transactionItem.className = 'transaction-item';
                     
@@ -1186,14 +1246,12 @@
                     });
                     
                     let coinName = tx.coin || '';
-                    let coinSymbol = '';
+                    let coinSymbol = tx.symbol || '';
                     
                     if (tx.cryptocurrency && tx.cryptocurrency.includes('(')) {
                         const parts = tx.cryptocurrency.split('(');
                         coinName = parts[0].trim();
                         coinSymbol = parts[1].replace(')', '').trim();
-                    } else if (tx.symbol) {
-                        coinSymbol = tx.symbol;
                     }
                     
                     let amountText = '';
@@ -1236,7 +1294,7 @@
             const walletSummary = document.querySelector('.wallet-balance-summary');
             
             // Create wallet summary content
-            if (totalBalance > 0 || transactions.length > 0) {
+            if (totalBalance > 0 || userTransactions.length > 0) {
                 walletSummary.innerHTML = `
                     <h4 class="mb-3">Wallet Summary</h4>
                     <div class="d-flex justify-content-between mb-2">
@@ -1249,7 +1307,7 @@
                     </div>
                     <div class="d-flex justify-content-between">
                         <span>Total Transactions:</span>
-                        <span>${transactions.length}</span>
+                        <span>${userTransactions.length}</span>
                     </div>
                 `;
             } else {
@@ -1281,27 +1339,27 @@
         }
     }
 
-    function redirectToLogin() {
-        window.location.href = "login.html";
-    }
+function redirectToLogin() {
+            window.location.href = "login.html";
+        }
 
-    function logout() {
-        localStorage.removeItem("token"); 
-        const logoutModal = new bootstrap.Modal(document.getElementById("logoutModal"));
-        logoutModal.show();
-        setTimeout(redirectToLogin, 2000);
-    }
+        function logout() {
+            localStorage.removeItem("token"); 
+            const logoutModal = new bootstrap.Modal(document.getElementById("logoutModal"));
+            logoutModal.show();
+            setTimeout(redirectToLogin, 2000);
+        }
 
-    document.getElementById("logoutButton").addEventListener("click", function () {
-        const confirmModal = new bootstrap.Modal(document.getElementById("confirmLogoutModal"));
-        confirmModal.show();
-    });
+        document.getElementById("logoutButton").addEventListener("click", function () {
+            const confirmModal = new bootstrap.Modal(document.getElementById("confirmLogoutModal"));
+            confirmModal.show();
+        });
 
-    document.getElementById("confirmLogoutButton").addEventListener("click", function () {
-        const confirmModal = bootstrap.Modal.getInstance(document.getElementById("confirmLogoutModal"));
-        confirmModal.hide();
-        logout();
-    });
+        document.getElementById("confirmLogoutButton").addEventListener("click", function () {
+            const confirmModal = bootstrap.Modal.getInstance(document.getElementById("confirmLogoutModal"));
+            confirmModal.hide();
+            logout();
+        });
 
     document.getElementById("walletButton").addEventListener("click", () => {
         document.getElementById("walletModal").style.display = "flex";
@@ -1329,7 +1387,7 @@
     document.getElementById("closeWalletButton").addEventListener("click", () => {
         document.getElementById("walletModal").style.display = "none";
     });
-
+    
     fetchUserDetails();
     
     // Initialize AOS
