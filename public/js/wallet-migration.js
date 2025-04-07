@@ -3,8 +3,10 @@
  * This file handles the migration of wallet data from localStorage to server-side storage
  */
 
-// Use the CorsHelper.API_BASE_URL if available, otherwise set it
-const API_BASE_URL = window.CorsHelper?.API_BASE_URL || 'https://cryptopro.onrender.com';
+// Use a function to get API base URL instead of declaring a global variable
+function getApiBaseUrl() {
+    return window.CorsHelper?.API_BASE_URL || 'https://cryptopro.onrender.com';
+}
 
 /**
  * Migrates the user's wallet data from localStorage to the server
@@ -82,7 +84,7 @@ async function migrateWalletDataToServer() {
         progressBar.style.width = '70%';
         message.textContent = 'Sending data to server...';
         
-        const response = await fetch(`${API_BASE_URL}/migrate-wallet`, {
+        const response = await fetch(`${getApiBaseUrl()}/migrate-wallet`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -150,7 +152,7 @@ async function checkIfMigrationNeeded() {
     if (Object.keys(userWallet).length > 0 || userTransactions.length > 0) {
         try {
             // Check if the server already has wallet data for this user
-            const response = await fetch(`${API_BASE_URL}/check-migration`, {
+            const response = await fetch(`${getApiBaseUrl()}/check-migration`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }

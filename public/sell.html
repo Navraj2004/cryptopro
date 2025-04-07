@@ -508,7 +508,9 @@
             Litecoin: 'fas fa-litecoin-sign'
         };
         
-        const API_BASE_URL = window.CorsHelper?.API_BASE_URL || 'https://cryptopro.onrender.com';
+        function getApiBaseUrl() {
+            return window.CorsHelper?.API_BASE_URL || 'https://cryptopro.onrender.com';
+        }
 
         /* Fetch Live Price */
         async function fetchLivePrice() {
@@ -525,7 +527,7 @@
             document.getElementById('coinIcon').className = coinIcons[cryptoName] || 'fas fa-coins';
 
             try {
-                const response = await fetch(`${API_BASE_URL}/crypto-price?coin=${cryptoSymbol}`);
+                const response = await fetch(`${getApiBaseUrl()}/crypto-price?coin=${cryptoSymbol}`);
                 const data = await response.json();
 
                 if (response.ok) {
@@ -566,7 +568,7 @@
             }
 
             try {
-                const response = await fetch(`${API_BASE_URL}/user`, {
+                const response = await fetch(`${getApiBaseUrl()}/user`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 
@@ -674,7 +676,7 @@
                 
                 // Send sell transaction to backend API
                 const token = localStorage.getItem('token');
-                const response = await fetch(`${API_BASE_URL}/sell`, {
+                const response = await fetch(`${getApiBaseUrl()}/sell`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
