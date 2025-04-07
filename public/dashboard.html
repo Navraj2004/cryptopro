@@ -956,7 +956,7 @@
     // Function to fetch price for a specific cryptocurrency
     async function fetchCryptoPrice(symbol, cardElement) {
         try {
-            const data = await corsHelper.fetchWithCORS(`/crypto-price?coin=${symbol}`, {
+            const data = await CorsHelper.fetchWithCORS(`/crypto-price?coin=${symbol}`, {
                 method: 'GET'
             });
             
@@ -1045,7 +1045,7 @@
         }
 
         try {
-            const result = await corsHelper.fetchWithCORS('/user', {
+            const result = await CorsHelper.fetchWithCORS('/user', {
                 method: 'GET',
                 headers: { 
                     'Authorization': `Bearer ${token}` 
@@ -1090,7 +1090,7 @@
             `;
             
             // Fetch wallet data from server
-            const walletResult = await corsHelper.fetchWithCORS('/wallet', {
+            const walletResult = await CorsHelper.fetchWithCORS('/wallet', {
                 method: 'GET',
                 headers: { 
                     'Authorization': `Bearer ${token}` 
@@ -1098,7 +1098,7 @@
             });
             
             // Fetch transaction data from server
-            const transactionResult = await corsHelper.fetchWithCORS('/transactions', {
+            const transactionResult = await CorsHelper.fetchWithCORS('/transactions', {
                 method: 'GET',
                 headers: { 
                     'Authorization': `Bearer ${token}` 

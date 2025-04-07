@@ -429,7 +429,7 @@
         
                 try {
                     // Use CORS helper for registration
-                    const result = await corsHelper.registerUser(formData);
+                    const result = await CorsHelper.registerUser(formData);
                     
                     if (result.success) {
                         // Show success modal

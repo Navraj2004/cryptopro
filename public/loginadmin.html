@@ -276,7 +276,7 @@
             $loginButton.prop('disabled', true).text('Logging in...');
 
             // Use the CORS helper to handle login
-            corsHelper.loginUser(email, password, true) // true for admin login
+            CorsHelper.loginUser(email, password, true) // true for admin login
                 .then(data => {
                     if (data.success) {
                         $('#successModal').modal('show'); // Show success modal

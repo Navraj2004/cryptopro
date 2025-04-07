@@ -378,7 +378,7 @@
 
         try {
             // Use CORS helper for login
-            const result = await corsHelper.loginUser(email, password, false);
+            const result = await CorsHelper.loginUser(email, password, false);
 
             if (!result.success) {
                 errorMessage.style.display = "block";
