@@ -642,28 +642,78 @@ async function fetchUserDetails() {
         function updatePortfolioInfo() {
             if (!currentUser) return;
             
-            // Get user's wallet for this cryptocurrency
-            const walletsData = JSON.parse(localStorage.getItem('cryptoPro_wallets')) || {};
-            const userWallet = walletsData[currentUser.id] || {};
-            const coinHolding = userWallet[cryptoName] || { quantity: 0, totalInvested: 0 };
-            
-            const quantity = coinHolding.quantity;
+            // Get available quantity from the form (which was populated from the server)
+            const availableQuantity = parseFloat(document.getElementById('availableQuantity').value) || 0;
             const symbol = coinSymbols[cryptoName] || '';
             
             // Update portfolio information
-            document.getElementById('portfolioHoldings').textContent = `${quantity.toFixed(8)} ${symbol}`;
+            document.getElementById('portfolioHoldings').textContent = `${availableQuantity.toFixed(8)} ${symbol}`;
             
             if (currentPrice > 0) {
-                const currentValue = quantity * currentPrice;
+                const currentValue = availableQuantity * currentPrice;
                 document.getElementById('portfolioValue').textContent = `$${currentValue.toFixed(2)}`;
                 
                 // Calculate average purchase price if any holdings
-                if (quantity > 0 && coinHolding.totalInvested > 0) {
-                    const avgPrice = coinHolding.totalInvested / quantity;
+                // This will be calculated when we fetch user details
+                const avgPriceElement = document.getElementById('portfolioAvgPrice');
+                if (avgPriceElement.textContent === 'N/A' && availableQuantity > 0) {
+                    // We need to calculate the average price
+                    // This should be done when fetching user details
+                    fetchUserDetailsAndUpdateAvgPrice();
+                }
+            }
+        }
+        
+        /* Fetch user details and update average price */
+        async function fetchUserDetailsAndUpdateAvgPrice() {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            
+            try {
+                // Fetch wallet data from server
+                const walletResponse = await fetch(`${getApiBaseUrl()}/wallet`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!walletResponse.ok) {
+                    throw new Error('Failed to fetch wallet data from server');
+                }
+                
+                const walletData = await walletResponse.json();
+                
+                if (!walletData.success) {
+                    throw new Error(walletData.message || 'Failed to fetch wallet data');
+                }
+                
+                // Find the coin in the user's purchases
+                const purchases = walletData.wallet || [];
+                let totalQuantity = 0;
+                let totalInvested = 0;
+                
+                purchases.forEach(purchase => {
+                    if (purchase.coin === cryptoName && purchase.type === 'Buy') {
+                        totalQuantity += purchase.quantity;
+                        totalInvested += purchase.totalPrice;
+                    } else if (purchase.coin === cryptoName && purchase.type === 'Sell') {
+                        totalQuantity -= purchase.quantity;
+                        // For sells, we don't adjust totalInvested as that would skew the average price
+                    }
+                });
+                
+                // Calculate and update average price
+                if (totalQuantity > 0 && totalInvested > 0) {
+                    const avgPrice = totalInvested / totalQuantity;
                     document.getElementById('portfolioAvgPrice').textContent = `$${avgPrice.toFixed(2)}`;
                 } else {
                     document.getElementById('portfolioAvgPrice').textContent = 'N/A';
                 }
+            } catch (err) {
+                console.error('Error fetching wallet details for avg price:', err);
+                document.getElementById('portfolioAvgPrice').textContent = 'N/A';
             }
         }
 
