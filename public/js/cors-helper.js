@@ -27,8 +27,8 @@ function sleep(ms) {
 }
 
 /**
- * Special handler for wallet data that bypasses proxies and directly
- * returns wallet data from the database
+ * Special handler for wallet data that fetches from MongoDB server
+ * instead of using localStorage
  */
 async function getWalletData() {
     const token = localStorage.getItem('token');
@@ -37,31 +37,45 @@ async function getWalletData() {
     }
     
     try {
-        // Extract user info from token
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const userId = payload.id || payload.userId || payload.sub;
-        const email = payload.email;
+        // Fetch user wallet data from the server
+        const walletResponse = await fetch(`${API_BASE_URL}/wallet`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
         
-        if (!userId && !email) {
-            throw new Error('Invalid token: missing user identifier');
+        if (!walletResponse.ok) {
+            const errorData = await walletResponse.json();
+            throw new Error(errorData.message || 'Failed to fetch wallet data');
         }
         
-        // Get user from database
-        const userData = JSON.parse(localStorage.getItem('cryptoPro_users')) || {};
-        const userKey = Object.keys(userData).find(id => userData[id].email === email);
+        const walletData = await walletResponse.json();
         
-        if (!userKey) {
-            throw new Error('User not found in database');
+        if (!walletData.success) {
+            throw new Error(walletData.message || 'Failed to fetch wallet data');
         }
         
-        // Get wallet data from database
-        const walletsData = JSON.parse(localStorage.getItem('cryptoPro_wallets')) || {};
-        const userWallet = walletsData[userKey] || {};
+        // Get user details
+        const userResponse = await fetch(`${API_BASE_URL}/user`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
         
-        // Get transactions from database
-        const transactionsData = JSON.parse(localStorage.getItem('cryptoPro_transactions')) || {};
-        const userTransactions = Object.values(transactionsData)
-            .filter(tx => tx.userId === userKey);
+        if (!userResponse.ok) {
+            const errorData = await userResponse.json();
+            throw new Error(errorData.message || 'Failed to fetch user data');
+        }
+        
+        const userData = await userResponse.json();
+        
+        if (!userData.success) {
+            throw new Error(userData.message || 'Failed to fetch user data');
+        }
         
         // Format wallet data for display
         const coinIcons = {
@@ -75,12 +89,32 @@ async function getWalletData() {
             Litecoin: 'fas fa-litecoin-sign'
         };
         
-        // Process each coin in the wallet
+        // Process each purchase in the wallet
+        const purchases = walletData.wallet || [];
         const holdings = [];
         let totalBalance = 0;
         
-        for (const [coin, details] of Object.entries(userWallet)) {
-            // Get current price for the coin
+        // Group purchases by coin
+        const coinPurchases = {};
+        
+        purchases.forEach(purchase => {
+            const coin = purchase.coin;
+            if (!coinPurchases[coin]) {
+                coinPurchases[coin] = {
+                    quantity: 0,
+                    totalInvested: 0
+                };
+            }
+            
+            coinPurchases[coin].quantity += purchase.quantity;
+            coinPurchases[coin].totalInvested += purchase.totalPrice;
+        });
+        
+        // Process each coin
+        for (const [coin, details] of Object.entries(coinPurchases)) {
+            if (details.quantity <= 0) continue;
+            
+            // Get coin symbol
             const coinSymbol = {
                 Bitcoin: 'BTC',
                 Ethereum: 'ETH',
@@ -122,10 +156,10 @@ async function getWalletData() {
             });
         }
         
-        // Format transactions
-        const formattedTransactions = userTransactions.map(tx => {
-            const isBuy = tx.type === 'Buy';
-            const date = new Date(tx.date || tx.createdAt).toLocaleDateString('en-US', {
+        // Format transactions from purchases
+        const formattedTransactions = purchases.map(purchase => {
+            const isBuy = true; // All purchases are buys
+            const date = new Date(purchase.date).toLocaleDateString('en-US', {
                 year: 'numeric',
                 month: 'short',
                 day: 'numeric',
@@ -133,56 +167,45 @@ async function getWalletData() {
                 minute: '2-digit'
             });
             
-            let coinName = tx.coin || '';
-            let coinSymbol = tx.symbol || '';
+            const coinName = purchase.coin;
+            const coinSymbol = {
+                Bitcoin: 'BTC',
+                Ethereum: 'ETH',
+                Dogecoin: 'DOGE',
+                Ripple: 'XRP',
+                Cardano: 'ADA',
+                Solana: 'SOL',
+                Polkadot: 'DOT',
+                Litecoin: 'LTC'
+            }[coinName] || '';
             
-            if (tx.cryptocurrency && tx.cryptocurrency.includes('(')) {
-                const parts = tx.cryptocurrency.split('(');
-                coinName = parts[0].trim();
-                coinSymbol = parts[1].replace(')', '').trim();
-            }
-            
-            let amountText = '';
-            if (tx.amount && typeof tx.amount === 'string') {
-                amountText = tx.amount;
-            } else if (tx.quantity) {
-                amountText = `${tx.quantity} ${coinSymbol}`;
-            }
-            
-            let priceText = '';
-            if (tx.price && typeof tx.price === 'string') {
-                priceText = tx.price;
-            } else if (tx.totalPrice) {
-                priceText = `$${parseFloat(tx.totalPrice).toFixed(2)}`;
-            }
+            const amountText = `${purchase.quantity} ${coinSymbol}`;
+            const priceText = `$${purchase.totalPrice.toFixed(2)}`;
             
             return {
-                type: isBuy ? 'Buy' : 'Sell',
+                id: `tx-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                type: 'Buy',
                 coin: coinName,
                 symbol: coinSymbol,
-                quantity: tx.quantity || 0,
-                price: tx.price || 0,
-                totalPrice: tx.totalPrice || 0,
-                date: tx.date || tx.createdAt,
-                status: tx.status || 'Completed',
-                amountText,
-                priceText
+                amount: amountText,
+                price: priceText,
+                date,
+                status: 'Completed'
             };
         });
         
+        // Return formatted wallet data
         return {
             wallet: {
-                success: true,
                 holdings,
                 totalBalance
             },
             transactions: {
-                success: true,
                 transactions: formattedTransactions
             }
         };
     } catch (error) {
-        console.error("Error creating wallet data:", error);
+        console.error('Error creating wallet data:', error);
         throw error;
     }
 }

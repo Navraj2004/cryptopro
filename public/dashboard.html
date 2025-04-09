@@ -1113,8 +1113,7 @@
                 </tr>
             `;
             
-            // Get wallet data directly from the helper function
-            // This bypasses CORS issues by using mock data
+            // Get wallet data from MongoDB through our updated helper function
             const walletData = await CorsHelper.getWalletData();
             
             // Extract the data
