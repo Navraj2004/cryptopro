@@ -22,6 +22,51 @@ let walletDataCache = null;
 let walletCacheTimestamp = 0;
 const CACHE_DURATION = 10000; // Cache duration in milliseconds (10 seconds)
 
+// Auto-logout functionality
+let inactivityTimer;
+const INACTIVITY_TIMEOUT = 4 * 60 * 1000; // 4 minutes in milliseconds
+
+// Function to reset the inactivity timer
+function resetInactivityTimer() {
+    clearTimeout(inactivityTimer);
+    inactivityTimer = setTimeout(logoutDueToInactivity, INACTIVITY_TIMEOUT);
+}
+
+// Function to handle logout due to inactivity
+function logoutDueToInactivity() {
+    // Clear authentication data
+    localStorage.removeItem('token');
+    localStorage.removeItem('username');
+    localStorage.removeItem('isAdmin');
+    
+    // Show alert
+    alert('You have been logged out due to inactivity.');
+    
+    // Redirect to login page
+    window.location.href = '/login.html';
+}
+
+// Set up event listeners to reset the timer on user activity
+function setupInactivityMonitoring() {
+    // Reset timer on various user interactions
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    
+    events.forEach(event => {
+        document.addEventListener(event, resetInactivityTimer, true);
+    });
+    
+    // Initial setup of the timer
+    resetInactivityTimer();
+}
+
+// Initialize inactivity monitoring when the page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Only set up monitoring if user is logged in
+    if (localStorage.getItem('token')) {
+        setupInactivityMonitoring();
+    }
+});
+
 /**
  * Sleep function for implementing delays
  * @param {number} ms - Milliseconds to sleep
@@ -85,93 +130,88 @@ async function getWalletData() {
         
         // Process each purchase in the wallet
         const purchases = walletData.wallet || [];
-        const holdings = [];
-        let totalBalance = 0;
         
         // Group purchases by coin
-        const coinPurchases = {};
+        const coinHoldings = {};
         
-        purchases.forEach(purchase => {
-            const coin = purchase.coin;
-            if (!coinPurchases[coin]) {
-                coinPurchases[coin] = {
+        for (const purchase of purchases) {
+            const { coin, quantity, purchasePrice } = purchase;
+            
+            if (!coinHoldings[coin]) {
+                coinHoldings[coin] = {
+                    coin,
+                    symbol: coin.substring(0, 3).toUpperCase(),
+                    icon: coinIcons[coin] || 'fas fa-coins',
                     quantity: 0,
-                    totalInvested: 0
+                    totalInvested: 0,
+                    currentPrice: 0
                 };
             }
             
-            coinPurchases[coin].quantity += purchase.quantity;
-            coinPurchases[coin].totalInvested += purchase.totalPrice;
-        });
+            coinHoldings[coin].quantity += parseFloat(quantity);
+            coinHoldings[coin].totalInvested += parseFloat(quantity) * parseFloat(purchasePrice);
+        }
         
-        // Prepare coin symbols for batch price fetching
-        const coinSymbols = Object.keys(coinPurchases).map(coin => {
-            return {
-                Bitcoin: 'BTC',
-                Ethereum: 'ETH',
-                Dogecoin: 'DOGE',
-                Ripple: 'XRP',
-                Cardano: 'ADA',
-                Solana: 'SOL',
-                Polkadot: 'DOT',
-                Litecoin: 'LTC'
-            }[coin] || '';
-        }).filter(symbol => symbol !== '');
+        // Fetch current prices for each coin
+        const holdings = [];
+        const transactions = [];
         
-        // Fetch all prices at once if possible
-        let prices = {};
-        try {
-            // This would be an optimized endpoint that returns prices for multiple coins
-            // For now, we'll simulate it with individual calls
-            for (const [coin, details] of Object.entries(coinPurchases)) {
-                if (details.quantity <= 0) continue;
+        // Process each coin holding
+        for (const coin in coinHoldings) {
+            try {
+                // Fetch current price
+                const priceResponse = await fetch(`${API_BASE_URL}/crypto-price?coin=${coin.substring(0, 3)}`);
+                const priceData = await priceResponse.json();
                 
-                // Get coin symbol
-                const coinSymbol = {
-                    Bitcoin: 'BTC',
-                    Ethereum: 'ETH',
-                    Dogecoin: 'DOGE',
-                    Ripple: 'XRP',
-                    Cardano: 'ADA',
-                    Solana: 'SOL',
-                    Polkadot: 'DOT',
-                    Litecoin: 'LTC'
-                }[coin] || '';
-                
-                if (!coinSymbol) continue;
-                
-                // Get current price
-                let currentPrice;
-                try {
-                    const priceData = await fetchWithCORS(`/crypto-price?coin=${coinSymbol}`, { method: 'GET' });
-                    currentPrice = priceData.price;
-                } catch (error) {
-                    // Use mock price if fetch fails
-                    currentPrice = mockCryptoPrice(coinSymbol);
+                if (priceData.success) {
+                    const currentPrice = priceData.price;
+                    const holding = coinHoldings[coin];
+                    
+                    holding.currentPrice = currentPrice;
+                    
+                    // Calculate total value and profit/loss
+                    const totalValue = holding.quantity * currentPrice;
+                    const totalInvested = holding.totalInvested;
+                    const profitLoss = totalValue - totalInvested;
+                    const percentChange = (profitLoss / totalInvested) * 100;
+                    
+                    // Format for display
+                    const formattedPercentChange = percentChange.toFixed(2);
+                    const changePrefix = percentChange >= 0 ? '+' : '';
+                    
+                    // Determine appropriate color class based on profit/loss
+                    const changeClass = percentChange >= 0 ? 'text-success' : 'text-danger';
+                    
+                    holdings.push({
+                        coin: holding.coin,
+                        symbol: holding.symbol,
+                        icon: holding.icon,
+                        quantity: holding.quantity.toFixed(4),
+                        purchasePrice: (totalInvested / holding.quantity).toFixed(2),
+                        currentPrice: currentPrice.toFixed(2),
+                        totalPrice: totalValue.toFixed(2),
+                        change: `${changePrefix}${formattedPercentChange}%`,
+                        changeClass: changeClass
+                    });
                 }
-                
-                const currentValue = details.quantity * currentPrice;
-                totalBalance += currentValue;
-                
-                // Calculate change (using average purchase price)
-                const avgPrice = details.quantity > 0 ? details.totalInvested / details.quantity : 0;
-                const change = avgPrice > 0 ? ((currentPrice - avgPrice) / avgPrice) * 100 : 0;
-                const changeClass = change >= 0 ? 'text-success' : 'text-danger';
-                const changeText = change >= 0 ? `+${change.toFixed(2)}%` : `${change.toFixed(2)}%`;
+            } catch (error) {
+                console.error(`Error fetching price for ${coin}:`, error);
+                // Add with mock data if price fetch fails
+                const holding = coinHoldings[coin];
+                const mockPrice = mockCryptoPrice(holding.symbol);
                 
                 holdings.push({
-                    coin,
-                    symbol: coinSymbol,
-                    quantity: details.quantity.toFixed(8),
-                    totalPrice: currentValue.toFixed(2),
-                    icon: coinIcons[coin] || 'fas fa-coins',
-                    change: changeText,
-                    changeClass
+                    coin: holding.coin,
+                    symbol: holding.symbol,
+                    icon: holding.icon,
+                    quantity: holding.quantity.toFixed(4),
+                    purchasePrice: (holding.totalInvested / holding.quantity).toFixed(2),
+                    currentPrice: mockPrice.toFixed(2),
+                    totalPrice: (holding.quantity * mockPrice).toFixed(2),
+                    change: '+0.00%',
+                    changeClass: 'text-muted'
                 });
             }
-        } catch (error) {
-            console.warn('Error fetching prices:', error);
-            // Continue with what we have
         }
         
         // Get transaction history directly from the server response
@@ -223,7 +263,7 @@ async function getWalletData() {
         const formattedWalletData = {
             wallet: {
                 holdings,
-                totalBalance
+                totalBalance: holdings.reduce((acc, holding) => acc + parseFloat(holding.totalPrice), 0)
             },
             transactions: {
                 transactions: formattedTransactions

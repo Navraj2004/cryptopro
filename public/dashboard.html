@@ -1161,19 +1161,28 @@
             } else {
                 holdings.forEach((item) => {
                     const row = document.createElement("tr");
+                    
+                    // Determine color class based on change value
+                    const changeValue = parseFloat(item.change.replace('%', '').replace('+', ''));
+                    const changeColorClass = changeValue >= 0 ? 'text-success' : 'text-danger';
+                    
                     row.innerHTML = `
                         <td>
                             <div class="d-flex align-items-center">
                                 <div class="coin-icon me-2">
                                     <i class="${item.icon}"></i>
                                 </div>
-                                <div>${item.coin}</div>
+                                <div>
+                                    <div class="fw-bold">${item.coin}</div>
+                                    <small class="text-muted">${item.symbol}</small>
+                                </div>
                             </div>
                         </td>
                         <td>${item.quantity}</td>
-                        <td>$${parseFloat(item.totalPrice).toFixed(2)}</td>
-                        <td class="${item.changeClass}">${item.change}</td>
+                        <td>$${item.totalPrice}</td>
+                        <td class="${changeColorClass}">${item.change}</td>
                     `;
+                    
                     walletTableBody.appendChild(row);
                 });
             }
