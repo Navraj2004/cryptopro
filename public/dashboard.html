@@ -389,14 +389,16 @@
         
         .table {
             color: var(--light-color);
+            margin-bottom: 0;
             background-color: transparent;
         }
         
         .table th {
-            font-weight: 600;
+            font-weight: 500;
             color: rgba(255, 255, 255, 0.7);
-            border-color: rgba(255, 255, 255, 0.1);
-            padding: 1rem 0.75rem;
+            border-color: rgba(255, 255, 255, 0.05);
+            padding: 0.75rem;
+            background-color: rgba(15, 23, 42, 0.6);
         }
         
         .table td {
@@ -407,11 +409,11 @@
         
         .table tbody tr {
             transition: all 0.3s ease;
-            background-color: rgba(15, 23, 42, 0.4) !important;
+            background-color: rgba(15, 23, 42, 0.8) !important;
         }
         
         .table tbody tr:hover {
-            background-color: rgba(30, 41, 59, 0.7) !important;
+            background-color: rgba(30, 41, 59, 0.9) !important;
         }
         
         .coin-cell {
@@ -1204,12 +1206,12 @@
                                 </div>
                                 <div>
                                     <h6 class="mb-0">${isBuy ? 'Bought' : 'Sold'} ${coinName}</h6>
-                                    <small class="text-muted">${date}</small>
+                                    <small class="text-light fw-bold">${date}</small>
                                 </div>
                             </div>
                             <div class="text-end">
                                 <h6 class="mb-0">${amountText}</h6>
-                                <small class="${isBuy ? 'text-success' : 'text-danger'}">${priceText}</small>
+                                <small class="${isBuy ? 'text-success' : 'text-danger'} fw-bold">${priceText}</small>
                             </div>
                         </div>
                     `;
