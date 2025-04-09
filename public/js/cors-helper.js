@@ -162,7 +162,7 @@ async function getWalletData() {
         // Format transactions from the transaction history
         const formattedTransactions = transactionHistory.map(tx => {
             const isBuy = tx.type === 'Buy';
-            const date = new Date(tx.date).toLocaleDateString('en-US', {
+            const date = new Date(tx.date || tx.createdAt).toLocaleDateString('en-US', {
                 year: 'numeric',
                 month: 'short',
                 day: 'numeric',
@@ -193,9 +193,13 @@ async function getWalletData() {
                 amount: amountText,
                 price: priceText,
                 date,
+                timestamp: new Date(tx.date || tx.createdAt).getTime(), // Store timestamp for sorting
                 status: 'Completed'
             };
         });
+        
+        // Sort transactions by timestamp (newest first)
+        formattedTransactions.sort((a, b) => b.timestamp - a.timestamp);
         
         // Return formatted wallet data
         return {

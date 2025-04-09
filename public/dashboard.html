@@ -568,6 +568,30 @@
         .tab-pane.holdings-pane .table {
             background-color: transparent !important;
         }
+        
+        .table tbody tr {
+            transition: all 0.3s ease;
+            background-color: rgba(15, 23, 42, 0.8) !important;
+        }
+        
+        .table tbody tr:hover {
+            background-color: rgba(30, 41, 59, 0.9) !important;
+        }
+        
+        /* Override any default white background */
+        .table, 
+        .table tbody, 
+        .table tbody tr td, 
+        .holdings-pane,
+        .tab-pane {
+            background-color: rgba(15, 23, 42, 0.8) !important;
+        }
+        
+        .coin-cell {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
     </style>
 </head>
 <body>
@@ -1157,9 +1181,26 @@
             } else {
                 // Sort transactions by date (newest first)
                 userTransactions.sort((a, b) => {
+                    // First try to use timestamp if available
+                    if (a.timestamp && b.timestamp) {
+                        return b.timestamp - a.timestamp;
+                    }
+                    
+                    // Fall back to date objects
                     const dateA = new Date(a.date || a.createdAt);
                     const dateB = new Date(b.date || b.createdAt);
-                    return dateB - dateA;
+                    
+                    // If dates are the same (same second), use the transaction ID or random ordering
+                    if (dateB.getTime() === dateA.getTime()) {
+                        // If we have IDs, use them for consistent ordering
+                        if (a.id && b.id) {
+                            return b.id.localeCompare(a.id);
+                        }
+                        // Otherwise, just put the newer transactions first
+                        return -1;
+                    }
+                    
+                    return dateB.getTime() - dateA.getTime();
                 });
                 
                 userTransactions.forEach(tx => {
