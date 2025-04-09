@@ -13,9 +13,8 @@ const port = process.env.PORT || 3000;
 const jwtSecret = process.env.JWT_SECRET || 'default_jwt_secret';
 const apiKey = process.env.CMC_API_KEY; // Crypto API key
 
-const mongodbUri = process.env.MONGODB_URI;
-
-
+// Use a hardcoded MongoDB URI for local development if environment variable is not set
+const mongodbUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/cryptoPro';
 
 // Middleware
 app.use(cors());
@@ -77,6 +76,15 @@ const userSchema = new mongoose.Schema({
   idProofImage: { type: Buffer, required: true },
   purchases: [
     {
+      coin: { type: String, required: true },
+      quantity: { type: Number, required: true },
+      totalPrice: { type: Number, required: true },
+      date: { type: Date, default: Date.now },
+    },
+  ],
+  transactions: [
+    {
+      type: { type: String, required: true },
       coin: { type: String, required: true },
       quantity: { type: Number, required: true },
       totalPrice: { type: Number, required: true },
@@ -278,12 +286,34 @@ app.post('/buy', authenticateUser, async (req, res) => {
             });
         }
 
+        // Add a buy transaction to the user's transactions array
+        // If transactions array doesn't exist, create it
+        if (!user.transactions) {
+            user.transactions = [];
+        }
+
+        // Add the buy transaction
+        user.transactions.push({
+            type: 'Buy',
+            coin: coin,
+            quantity: quantity,
+            totalPrice: totalPrice,
+            date: new Date()
+        });
+
         await user.save();
 
         res.status(200).json({
             success: true,
             message: `Successfully purchased ${quantity} ${coin}(s) for $${totalPrice}.`,
             purchases: user.purchases,
+            transaction: {
+                type: 'Buy',
+                coin: coin,
+                quantity: quantity,
+                totalPrice: totalPrice,
+                date: new Date()
+            }
         });
     } catch (err) {
         console.error('Error during purchase:', err);
@@ -322,12 +352,34 @@ app.post('/sell', authenticateUser, async (req, res) => {
           user.purchases = user.purchases.filter(p => p.coin !== coin);
       }
 
+      // Add a sell transaction to the user's transactions array
+      // If transactions array doesn't exist, create it
+      if (!user.transactions) {
+          user.transactions = [];
+      }
+
+      // Add the sell transaction
+      user.transactions.push({
+          type: 'Sell',
+          coin: coin,
+          quantity: quantity,
+          totalPrice: totalPrice,
+          date: new Date()
+      });
+
       await user.save();
 
       res.status(200).json({
           success: true,
           message: `Successfully sold ${quantity} ${coin}(s) for $${totalPrice}.`,
           purchases: user.purchases,
+          transaction: {
+              type: 'Sell',
+              coin: coin,
+              quantity: quantity,
+              totalPrice: totalPrice,
+              date: new Date()
+          }
       });
   } catch (err) {
       console.error('Error during sale:', err);
@@ -343,14 +395,17 @@ app.get('/wallet', authenticateUser, async (req, res) => {
           return res.status(404).json({ success: false, message: 'User not found' });
       }
 
-      res.status(200).json({ success: true, wallet: user.purchases });
+      // Return both purchases (holdings) and transactions history
+      res.status(200).json({ 
+          success: true, 
+          wallet: user.purchases,
+          transactions: user.transactions || [] 
+      });
   } catch (err) {
       console.error('Error fetching wallet:', err);
       res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
-
-
 
 // Fetch User Details by Email
 app.get('/user', authenticateUser, async (req, res) => {

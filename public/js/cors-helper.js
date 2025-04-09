@@ -156,32 +156,8 @@ async function getWalletData() {
             });
         }
         
-        // We need to track transaction history for both buys and sells
-        // First, let's fetch all transactions from the server
-        let transactionHistory = [];
-        
-        try {
-            // Fetch all transactions from the wallet data
-            // This includes both buy and sell transactions
-            transactionHistory = walletData.transactions || [];
-            
-            // If transactions aren't available in the response, use purchases as fallback
-            if (!transactionHistory.length) {
-                // For each purchase in the wallet, create a "Buy" transaction
-                purchases.forEach(purchase => {
-                    transactionHistory.push({
-                        type: purchase.type || 'Buy',
-                        coin: purchase.coin,
-                        quantity: purchase.quantity,
-                        totalPrice: purchase.totalPrice,
-                        date: purchase.date
-                    });
-                });
-            }
-        } catch (error) {
-            console.warn('Could not fetch transaction history:', error);
-            // Continue with empty transaction history if there's an error
-        }
+        // Get transaction history directly from the server response
+        const transactionHistory = walletData.transactions || [];
         
         // Format transactions from the transaction history
         const formattedTransactions = transactionHistory.map(tx => {
@@ -232,7 +208,7 @@ async function getWalletData() {
             }
         };
     } catch (error) {
-        console.error('Error creating wallet data:', error);
+        console.error('Error fetching wallet data:', error);
         throw error;
     }
 }
