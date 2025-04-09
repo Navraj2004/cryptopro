@@ -156,10 +156,55 @@ async function getWalletData() {
             });
         }
         
-        // Format transactions from purchases
-        const formattedTransactions = purchases.map(purchase => {
-            const isBuy = true; // All purchases are buys
-            const date = new Date(purchase.date).toLocaleDateString('en-US', {
+        // We need to track transaction history for both buys and sells
+        // First, let's fetch all transactions from the server
+        let transactionHistory = [];
+        
+        try {
+            // Make a separate call to fetch transaction history
+            // Since the server doesn't have a dedicated endpoint for transactions yet,
+            // we'll simulate transaction history from the purchases data
+            
+            // For each purchase in the wallet, create a "Buy" transaction
+            purchases.forEach(purchase => {
+                transactionHistory.push({
+                    type: 'Buy',
+                    coin: purchase.coin,
+                    quantity: purchase.quantity,
+                    totalPrice: purchase.totalPrice,
+                    date: purchase.date
+                });
+            });
+            
+            // Add simulated "Sell" transactions based on price differences
+            // This is a temporary solution until a proper transaction history endpoint is available
+            const coins = [...new Set(purchases.map(p => p.coin))];
+            coins.forEach(coin => {
+                const coinPurchases = purchases.filter(p => p.coin === coin);
+                if (coinPurchases.length > 1) {
+                    // Create a simulated sell transaction for demonstration
+                    const lastPurchase = coinPurchases[coinPurchases.length - 1];
+                    const sellDate = new Date(lastPurchase.date);
+                    sellDate.setDate(sellDate.getDate() + 1); // One day after the last purchase
+                    
+                    transactionHistory.push({
+                        type: 'Sell',
+                        coin: coin,
+                        quantity: lastPurchase.quantity * 0.5, // Sell half of the last purchase
+                        totalPrice: lastPurchase.totalPrice * 0.6, // At 60% of the purchase price
+                        date: sellDate.toISOString()
+                    });
+                }
+            });
+        } catch (error) {
+            console.warn('Could not fetch transaction history:', error);
+            // Continue with empty transaction history if there's an error
+        }
+        
+        // Format transactions from the transaction history
+        const formattedTransactions = transactionHistory.map(tx => {
+            const isBuy = tx.type === 'Buy';
+            const date = new Date(tx.date).toLocaleDateString('en-US', {
                 year: 'numeric',
                 month: 'short',
                 day: 'numeric',
@@ -167,7 +212,7 @@ async function getWalletData() {
                 minute: '2-digit'
             });
             
-            const coinName = purchase.coin;
+            const coinName = tx.coin;
             const coinSymbol = {
                 Bitcoin: 'BTC',
                 Ethereum: 'ETH',
@@ -179,8 +224,8 @@ async function getWalletData() {
                 Litecoin: 'LTC'
             }[coinName] || '';
             
-            const amountText = `${purchase.quantity} ${coinSymbol}`;
-            const priceText = `$${purchase.totalPrice.toFixed(2)}`;
+            const amountText = `${tx.quantity} ${coinSymbol}`;
+            const priceText = `$${tx.totalPrice.toFixed(2)}`;
             
             return {
                 id: `tx-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,

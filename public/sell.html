@@ -568,32 +568,72 @@ async function fetchUserDetails() {
     }
 
     try {
-        // Extract user info from token
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const email = payload.email;
+        // Fetch user details from server
+        const response = await fetch(`${getApiBaseUrl()}/user`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch user details from server');
+        }
+
+        const userData = await response.json();
         
-        // Get user from database
-        const userData = JSON.parse(localStorage.getItem('cryptoPro_users')) || {};
-        const userKey = Object.keys(userData).find(id => userData[id].email === email);
-        
-        if (!userKey) {
-            throw new Error('User not found in database');
+        if (!userData.success) {
+            throw new Error(userData.message || 'Failed to fetch user data');
         }
         
-        currentUser = { id: userKey, email: email };
+        // Get user email from response
+        const email = userData.user.email;
+        
+        // Extract user ID from token
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const userId = payload.id || payload.userId || payload.sub;
+        
+        currentUser = { id: userId, email: email };
         document.getElementById('emailId').value = email;
         
-        // Get user's wallet for this cryptocurrency
-        const walletsData = JSON.parse(localStorage.getItem('cryptoPro_wallets')) || {};
-        const userWallet = walletsData[userKey] || {};
-        const coinHolding = userWallet[cryptoName] || { quantity: 0, totalInvested: 0 };
+        // Fetch wallet data from server
+        const walletResponse = await fetch(`${getApiBaseUrl()}/wallet`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!walletResponse.ok) {
+            throw new Error('Failed to fetch wallet data from server');
+        }
+        
+        const walletData = await walletResponse.json();
+        
+        if (!walletData.success) {
+            throw new Error(walletData.message || 'Failed to fetch wallet data');
+        }
+        
+        // Find the coin in the user's purchases
+        const purchases = walletData.wallet || [];
+        let totalQuantity = 0;
+        let totalInvested = 0;
+        
+        purchases.forEach(purchase => {
+            if (purchase.coin === cryptoName) {
+                totalQuantity += purchase.quantity;
+                totalInvested += purchase.totalPrice;
+            }
+        });
         
         // Update form fields
-        document.getElementById('availableQuantity').value = coinHolding.quantity.toFixed(8);
+        document.getElementById('availableQuantity').value = totalQuantity.toFixed(8);
         updatePortfolioInfo();
     } catch (err) {
         console.error('Error fetching user details:', err);
-        alert('Failed to fetch user details.');
+        alert('Failed to fetch user details: ' + err.message);
         window.location.href = 'login.html';
     }
 }
@@ -669,47 +709,40 @@ function updateTotalPrice() {
                 sellButton.disabled = true;
                 sellButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
                 
+                // Get token for authentication
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    throw new Error('Authentication token not found');
+                }
+                
                 // Create transaction data
                 const transactionData = {
                     coin: cryptoName,
-                    symbol: coinSymbols[cryptoName] || '',
-                    quantity,
-                    price: currentPrice,
-                    totalPrice,
-                    type: 'Sell',
-                    date: new Date().toISOString(),
-                    status: 'Completed',
-                    userId: currentUser.id
+                    quantity: quantity,
+                    totalPrice: totalPrice,
+                    type: 'Sell'
                 };
                 
-                // Store transaction in local database
-                const transactionsData = JSON.parse(localStorage.getItem('cryptoPro_transactions')) || {};
-                const transactionId = 'TX' + Date.now().toString();
-                transactionsData[transactionId] = transactionData;
-                localStorage.setItem('cryptoPro_transactions', JSON.stringify(transactionsData));
+                // Send sell request to server
+                const response = await fetch(`${getApiBaseUrl()}/sell`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(transactionData)
+                });
                 
-                // Update wallet balance
-                const walletsData = JSON.parse(localStorage.getItem('cryptoPro_wallets')) || {};
-                if (!walletsData[currentUser.id]) {
-                    walletsData[currentUser.id] = {};
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Failed to process sale');
                 }
                 
-                if (!walletsData[currentUser.id][cryptoName]) {
-                    walletsData[currentUser.id][cryptoName] = {
-                        quantity: 0,
-                        totalInvested: 0
-                    };
+                const result = await response.json();
+                
+                if (!result.success) {
+                    throw new Error(result.message || 'Failed to process sale');
                 }
-                
-                const wallet = walletsData[currentUser.id][cryptoName];
-                wallet.quantity -= quantity;
-                wallet.totalInvested -= totalPrice;
-                
-                // Ensure we don't have negative quantities
-                if (wallet.quantity < 0) wallet.quantity = 0;
-                if (wallet.totalInvested < 0) wallet.totalInvested = 0;
-                
-                localStorage.setItem('cryptoPro_wallets', JSON.stringify(walletsData));
                 
                 // Restore button state
                 sellButton.disabled = false;
