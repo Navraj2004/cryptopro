@@ -17,6 +17,11 @@ const CORS_PROXIES = [
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000; // 1 second
 
+// Cache for wallet data to reduce API calls
+let walletDataCache = null;
+let walletCacheTimestamp = 0;
+const CACHE_DURATION = 10000; // Cache duration in milliseconds (10 seconds)
+
 /**
  * Sleep function for implementing delays
  * @param {number} ms - Milliseconds to sleep
@@ -31,6 +36,12 @@ function sleep(ms) {
  * instead of using localStorage
  */
 async function getWalletData() {
+    // Check if we have a valid cache
+    const now = Date.now();
+    if (walletDataCache && (now - walletCacheTimestamp < CACHE_DURATION)) {
+        return walletDataCache;
+    }
+    
     const token = localStorage.getItem('token');
     if (!token) {
         throw new Error('Authentication token not found');
@@ -57,25 +68,8 @@ async function getWalletData() {
             throw new Error(walletData.message || 'Failed to fetch wallet data');
         }
         
-        // Get user details
-        const userResponse = await fetch(`${API_BASE_URL}/user`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        if (!userResponse.ok) {
-            const errorData = await userResponse.json();
-            throw new Error(errorData.message || 'Failed to fetch user data');
-        }
-        
-        const userData = await userResponse.json();
-        
-        if (!userData.success) {
-            throw new Error(userData.message || 'Failed to fetch user data');
-        }
+        // Get user details - only if needed
+        let userData = { user: { username: localStorage.getItem('username') || 'User' } };
         
         // Format wallet data for display
         const coinIcons = {
@@ -110,12 +104,9 @@ async function getWalletData() {
             coinPurchases[coin].totalInvested += purchase.totalPrice;
         });
         
-        // Process each coin
-        for (const [coin, details] of Object.entries(coinPurchases)) {
-            if (details.quantity <= 0) continue;
-            
-            // Get coin symbol
-            const coinSymbol = {
+        // Prepare coin symbols for batch price fetching
+        const coinSymbols = Object.keys(coinPurchases).map(coin => {
+            return {
                 Bitcoin: 'BTC',
                 Ethereum: 'ETH',
                 Dogecoin: 'DOGE',
@@ -125,35 +116,62 @@ async function getWalletData() {
                 Polkadot: 'DOT',
                 Litecoin: 'LTC'
             }[coin] || '';
-            
-            // Get current price
-            let currentPrice;
-            try {
-                const priceData = await fetchWithCORS(`/crypto-price?coin=${coinSymbol}`, { method: 'GET' });
-                currentPrice = priceData.price;
-            } catch (error) {
-                // Use mock price if fetch fails
-                currentPrice = mockCryptoPrice(coinSymbol);
+        }).filter(symbol => symbol !== '');
+        
+        // Fetch all prices at once if possible
+        let prices = {};
+        try {
+            // This would be an optimized endpoint that returns prices for multiple coins
+            // For now, we'll simulate it with individual calls
+            for (const [coin, details] of Object.entries(coinPurchases)) {
+                if (details.quantity <= 0) continue;
+                
+                // Get coin symbol
+                const coinSymbol = {
+                    Bitcoin: 'BTC',
+                    Ethereum: 'ETH',
+                    Dogecoin: 'DOGE',
+                    Ripple: 'XRP',
+                    Cardano: 'ADA',
+                    Solana: 'SOL',
+                    Polkadot: 'DOT',
+                    Litecoin: 'LTC'
+                }[coin] || '';
+                
+                if (!coinSymbol) continue;
+                
+                // Get current price
+                let currentPrice;
+                try {
+                    const priceData = await fetchWithCORS(`/crypto-price?coin=${coinSymbol}`, { method: 'GET' });
+                    currentPrice = priceData.price;
+                } catch (error) {
+                    // Use mock price if fetch fails
+                    currentPrice = mockCryptoPrice(coinSymbol);
+                }
+                
+                const currentValue = details.quantity * currentPrice;
+                totalBalance += currentValue;
+                
+                // Calculate change (using average purchase price)
+                const avgPrice = details.quantity > 0 ? details.totalInvested / details.quantity : 0;
+                const change = avgPrice > 0 ? ((currentPrice - avgPrice) / avgPrice) * 100 : 0;
+                const changeClass = change >= 0 ? 'text-success' : 'text-danger';
+                const changeText = change >= 0 ? `+${change.toFixed(2)}%` : `${change.toFixed(2)}%`;
+                
+                holdings.push({
+                    coin,
+                    symbol: coinSymbol,
+                    quantity: details.quantity.toFixed(8),
+                    totalPrice: currentValue.toFixed(2),
+                    icon: coinIcons[coin] || 'fas fa-coins',
+                    change: changeText,
+                    changeClass
+                });
             }
-            
-            const currentValue = details.quantity * currentPrice;
-            totalBalance += currentValue;
-            
-            // Calculate change (using average purchase price)
-            const avgPrice = details.quantity > 0 ? details.totalInvested / details.quantity : 0;
-            const change = avgPrice > 0 ? ((currentPrice - avgPrice) / avgPrice) * 100 : 0;
-            const changeClass = change >= 0 ? 'text-success' : 'text-danger';
-            const changeText = change >= 0 ? `+${change.toFixed(2)}%` : `${change.toFixed(2)}%`;
-            
-            holdings.push({
-                coin,
-                symbol: coinSymbol,
-                quantity: details.quantity.toFixed(8),
-                totalPrice: currentValue.toFixed(2),
-                icon: coinIcons[coin] || 'fas fa-coins',
-                change: changeText,
-                changeClass
-            });
+        } catch (error) {
+            console.warn('Error fetching prices:', error);
+            // Continue with what we have
         }
         
         // Get transaction history directly from the server response
@@ -201,8 +219,8 @@ async function getWalletData() {
         // Sort transactions by timestamp (newest first)
         formattedTransactions.sort((a, b) => b.timestamp - a.timestamp);
         
-        // Return formatted wallet data
-        return {
+        // Create the formatted wallet data
+        const formattedWalletData = {
             wallet: {
                 holdings,
                 totalBalance
@@ -211,6 +229,13 @@ async function getWalletData() {
                 transactions: formattedTransactions
             }
         };
+        
+        // Update cache
+        walletDataCache = formattedWalletData;
+        walletCacheTimestamp = now;
+        
+        // Return formatted wallet data
+        return formattedWalletData;
     } catch (error) {
         console.error('Error fetching wallet data:', error);
         throw error;
