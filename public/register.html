@@ -247,6 +247,48 @@
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        
+        /* Password validation styling */
+        .password-validation-container, .password-match-container {
+            background: rgba(30, 41, 59, 0.5);
+            border-radius: 8px;
+            padding: 10px 15px;
+            margin-top: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .validation-rule {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.8);
+            transition: all 0.3s ease;
+        }
+        
+        .validation-rule i {
+            margin-right: 8px;
+            width: 16px;
+            text-align: center;
+        }
+        
+        .validation-rule.valid {
+            color: var(--success-color);
+        }
+        
+        .validation-rule.invalid {
+            color: var(--danger-color);
+        }
+        
+        @keyframes validateCheck {
+            0% { transform: scale(0); opacity: 0; }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        .validation-rule i.animate-check {
+            animation: validateCheck 0.3s ease forwards;
+        }
     </style>
 </head>
 <body>
@@ -291,12 +333,44 @@
                 <div class="form-floating mb-3">
                     <input type="password" class="form-control" id="password" name="password" placeholder="Password" required>
                     <label for="password"><i class="fas fa-lock me-2"></i>Password</label>
-                    <small class="form-text text-light opacity-75">Password must be at least 8 characters, contain one uppercase letter, one number, and one special character.</small>
+                    
+                    <!-- Password validation rules with animated checkmarks -->
+                    <div class="password-validation-container mt-2">
+                        <div class="validation-rule" id="length-validation">
+                            <i class="fas fa-times-circle text-danger"></i>
+                            <i class="fas fa-check-circle text-success d-none"></i>
+                            <span>At least 8 characters</span>
+                        </div>
+                        <div class="validation-rule" id="uppercase-validation">
+                            <i class="fas fa-times-circle text-danger"></i>
+                            <i class="fas fa-check-circle text-success d-none"></i>
+                            <span>At least one uppercase letter</span>
+                        </div>
+                        <div class="validation-rule" id="number-validation">
+                            <i class="fas fa-times-circle text-danger"></i>
+                            <i class="fas fa-check-circle text-success d-none"></i>
+                            <span>At least one number</span>
+                        </div>
+                        <div class="validation-rule" id="special-validation">
+                            <i class="fas fa-times-circle text-danger"></i>
+                            <i class="fas fa-check-circle text-success d-none"></i>
+                            <span>At least one special character</span>
+                        </div>
+                    </div>
                 </div>
                 <!-- Confirm Password -->
-                <div class="form-floating mb-4">
+                <div class="form-floating mb-3">
                     <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" placeholder="Confirm Password" required>
                     <label for="confirmPassword"><i class="fas fa-lock me-2"></i>Confirm Password</label>
+                </div>
+                
+                <!-- Password match validation below confirm password -->
+                <div class="password-match-container mb-4">
+                    <div class="validation-rule" id="match-validation">
+                        <i class="fas fa-times-circle text-danger"></i>
+                        <i class="fas fa-check-circle text-success d-none"></i>
+                        <span>Passwords match</span>
+                    </div>
                 </div>
                 
                 <!-- Register Button -->
@@ -375,6 +449,72 @@
     </script>
     <script>
         document.addEventListener("DOMContentLoaded", function () {
+            // Password validation
+            const passwordInput = document.getElementById("password");
+            const confirmPasswordInput = document.getElementById("confirmPassword");
+            const lengthValidation = document.getElementById("length-validation");
+            const uppercaseValidation = document.getElementById("uppercase-validation");
+            const numberValidation = document.getElementById("number-validation");
+            const specialValidation = document.getElementById("special-validation");
+            const matchValidation = document.getElementById("match-validation");
+            
+            let passwordValid = false;
+            let confirmPasswordValid = false;
+            
+            // Function to check password requirements
+            function validatePassword() {
+                const password = passwordInput.value;
+                const confirmPassword = confirmPasswordInput.value;
+                
+                // Length validation (8+ characters)
+                const isLengthValid = password.length >= 8;
+                updateValidationRule(lengthValidation, isLengthValid);
+                
+                // Uppercase validation
+                const isUppercaseValid = /[A-Z]/.test(password);
+                updateValidationRule(uppercaseValidation, isUppercaseValid);
+                
+                // Number validation
+                const isNumberValid = /\d/.test(password);
+                updateValidationRule(numberValidation, isNumberValid);
+                
+                // Special character validation
+                const isSpecialValid = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+                updateValidationRule(specialValidation, isSpecialValid);
+                
+                // Match validation
+                const isMatchValid = confirmPassword.length > 0 && password === confirmPassword;
+                updateValidationRule(matchValidation, isMatchValid);
+                
+                // Overall password validity
+                passwordValid = isLengthValid && isUppercaseValid && isNumberValid && isSpecialValid;
+                confirmPasswordValid = isMatchValid;
+            }
+            
+            // Function to update validation rule display
+            function updateValidationRule(element, isValid) {
+                const crossIcon = element.querySelector('.fa-times-circle');
+                const checkIcon = element.querySelector('.fa-check-circle');
+                
+                if (isValid) {
+                    crossIcon.classList.add('d-none');
+                    checkIcon.classList.remove('d-none');
+                    checkIcon.classList.add('animate-check');
+                    element.classList.add('valid');
+                    element.classList.remove('invalid');
+                } else {
+                    crossIcon.classList.remove('d-none');
+                    checkIcon.classList.add('d-none');
+                    checkIcon.classList.remove('animate-check');
+                    element.classList.remove('valid');
+                    element.classList.add('invalid');
+                }
+            }
+            
+            // Add event listeners
+            passwordInput.addEventListener('input', validatePassword);
+            confirmPasswordInput.addEventListener('input', validatePassword);
+            
             document.getElementById("registerForm").addEventListener("submit", async (e) => {
                 e.preventDefault(); // Prevent default form submission
         
@@ -387,32 +527,41 @@
                 const confirmPassword = document.getElementById("confirmPassword").value;
                 const idProofFile = document.getElementById("idProofFile").files[0];
         
+                // Validate form
+                validatePassword();
+                
                 // Validate ID card file
+                let idProofValid = true;
                 const maxSize = 1 * 1024 * 1024; // 1MB
-                if (idProofFile.size > maxSize) {
+                
+                if (!idProofFile) {
+                    showErrorModal("Please upload your ID card.");
+                    idProofValid = false;
+                } else if (idProofFile.size > maxSize) {
                     showErrorModal("ID card file size must not exceed 1MB.");
-                    return;
-                }
-                if (!idProofFile.type.includes("jpeg") && !idProofFile.type.includes("jpg")) {
+                    idProofValid = false;
+                } else if (!idProofFile.type.includes("jpeg") && !idProofFile.type.includes("jpg")) {
                     showErrorModal("Only JPG format is allowed for ID card upload.");
-                    return;
+                    idProofValid = false;
                 }
-        
-                // Validate password complexity (matches backend regex)
-                const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-                if (!passwordRegex.test(password)) {
-                    showErrorModal("Password must be at least 8 characters, contain one uppercase letter, one number, and one special character.");
-                    return;
-                }
-        
+                
                 // Check if passwords match
-                if (password !== confirmPassword) {
-                    showErrorModal("Passwords do not match. Please re-enter.");
+                const passwordsMatch = password === confirmPassword;
+                if (!passwordsMatch) {
+                    showErrorModal("Passwords do not match. Please try again.");
+                    return;
+                }
+                
+                // Check if all validations pass
+                if (!passwordValid || !idProofValid) {
+                    if (!passwordValid) {
+                        showErrorModal("Please ensure your password meets all requirements.");
+                    }
                     return;
                 }
         
                 // Set button to loading state
-                const registerBtn = document.getElementById("registerBtn");
+                const registerBtn = document.querySelector(".btn-register");
                 const originalText = registerBtn.innerHTML;
                 registerBtn.disabled = true;
                 registerBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Registering...';
@@ -428,7 +577,43 @@
                 formData.append("idProofFile", idProofFile);
         
                 try {
-                    // Use CORS helper for registration
+                    // For testing purposes - simulate successful registration
+                    // Comment this out when connecting to real backend
+                    if (window.location.hostname === 'localhost' || !window.CorsHelper) {
+                        // Create a demo user in localStorage
+                        const users = JSON.parse(localStorage.getItem('cryptoPro_users') || '{}');
+                        const userId = 'user' + Date.now();
+                        users[userId] = {
+                            id: userId,
+                            name: name,
+                            email: email,
+                            contactNumber: contactNumber,
+                            idProofNumber: idProofNumber,
+                            dob: dob,
+                            // Don't store actual password in production
+                            // This is just for demo
+                            password: password 
+                        };
+                        localStorage.setItem('cryptoPro_users', JSON.stringify(users));
+                        
+                        setTimeout(() => {
+                            // Show success modal
+                            const successModal = new bootstrap.Modal(document.getElementById("successModal"));
+                            successModal.show();
+            
+                            // Redirect only when the user clicks "Go to Login"
+                            document.getElementById("redirectLogin").addEventListener("click", () => {
+                                window.location.href = "login.html";
+                            });
+                            
+                            // Reset button state
+                            registerBtn.disabled = false;
+                            registerBtn.innerHTML = originalText;
+                        }, 1500);
+                        return;
+                    }
+                    
+                    // Use CORS helper for registration with real backend
                     const result = await CorsHelper.registerUser(formData);
                     
                     if (result.success) {
