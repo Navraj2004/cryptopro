@@ -21,7 +21,7 @@ app.use(cors({
   origin: ['https://cryptopro-1.onrender.com', 'http://localhost:3000', 'http://localhost:5000', 'http://127.0.0.1:5500'],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With', 'Admin-Key']
 }));
 app.use(bodyParser.json());
 
