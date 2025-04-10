@@ -134,28 +134,31 @@ app.get('/admin/config', (req, res) => {
 
 
 // Registration Route
-app.post('/register', upload.single('idProofFile'), async (req, res) => {
-  const { name, contactNumber, idProofNumber, dob, email, password } = req.body;
+app.post('/register', async (req, res) => {
+  const { name, contactNumber, idProofNumber, dob, email, password, idProofBase64, idProofFilename, idProofType } = req.body;
 
-  if (!req.file || !req.file.buffer) {
-    return res.status(400).send('ID proof image is required and must be in JPG format.');
+  // Check if ID proof image data is provided
+  if (!idProofBase64) {
+    return res.status(400).json({ success: false, message: 'ID proof image is required and must be in JPG format.' });
   }
 
   // Validate password complexity
   const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
   if (!password || !passwordRegex.test(password)) {
-    return res.status(400).send('Password must meet complexity requirements.');
+    return res.status(400).json({ success: false, message: 'Password must meet complexity requirements.' });
   }
 
   try {
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).send('Email already exists');
+      return res.status(400).json({ success: false, message: 'Email already exists' });
     }
 
+    // Convert base64 to buffer
+    const idProofBuffer = Buffer.from(idProofBase64, 'base64');
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Save user details
+    // Save user details to MongoDB
     const user = new User({
       name,
       contactNumber,
@@ -163,14 +166,14 @@ app.post('/register', upload.single('idProofFile'), async (req, res) => {
       dob,
       email,
       password: hashedPassword,
-      idProofImage: req.file.buffer,
+      idProofImage: idProofBuffer,
     });
 
     await user.save();
-    res.status(201).send('User registered successfully');
+    res.status(201).json({ success: true, message: 'User registered successfully' });
   } catch (err) {
     console.error('Error during registration:', err);
-    res.status(500).send('Internal server error');
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
