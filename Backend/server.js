@@ -543,8 +543,56 @@ app.get('/admin/users', authenticateAdmin, async (req, res) => {
   }
 });
 
+// Check if user exists route
+app.post('/check-user-exists', async (req, res) => {
+  const { email, contactNumber, idProofNumber } = req.body;
 
+  if (!email && !contactNumber && !idProofNumber) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'At least one parameter (email, contactNumber, or idProofNumber) is required' 
+    });
+  }
 
+  try {
+    let existingUser = null;
+    let message = '';
+
+    // Check email if provided
+    if (email) {
+      existingUser = await User.findOne({ email });
+      if (existingUser) {
+        message = 'Email address already exists. Please use a different email.';
+      }
+    }
+
+    // Check contact number if provided and no user found yet
+    if (!existingUser && contactNumber) {
+      existingUser = await User.findOne({ contactNumber });
+      if (existingUser) {
+        message = 'Contact number already exists. Please use a different contact number.';
+      }
+    }
+
+    // Check ID proof number if provided and no user found yet
+    if (!existingUser && idProofNumber) {
+      existingUser = await User.findOne({ idProofNumber });
+      if (existingUser) {
+        message = 'ID proof number already exists. Please verify your information.';
+      }
+    }
+
+    // Return the result
+    return res.status(existingUser ? 200 : 200).json({
+      success: true,
+      exists: !!existingUser,
+      message: existingUser ? message : 'User information is available for registration'
+    });
+  } catch (err) {
+    console.error('Error checking existing user:', err);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
 
 // Handle Undefined Routes
 app.use((req, res) => {

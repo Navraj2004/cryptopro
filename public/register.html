@@ -578,24 +578,13 @@
         
                 try {
                     // Check if the email, contact, or ID already exists
-                    // Skip this check in local/test environment as it may fail due to CORS
-                    if (typeof CorsHelper.checkExistingUser === 'function' && 
-                        !window.location.hostname.includes('localhost')) {
-                        try {
-                            console.log("Checking for existing user...");
-                            const checkResult = await CorsHelper.checkExistingUser(email, contactNumber, idProofNumber);
-                            if (checkResult && checkResult.exists) {
-                                showErrorModal(checkResult.message || "This user information already exists in our database.");
-                                registerBtn.disabled = false;
-                                registerBtn.innerHTML = originalText;
-                                return;
-                            }
-                        } catch (checkError) {
-                            console.warn("Error checking existing user:", checkError);
-                            // Continue with registration despite check failure
-                        }
-                    } else {
-                        console.log("Skipping existing user check...");
+                    console.log("Checking for existing user...");
+                    const checkResult = await CorsHelper.checkExistingUser(email, contactNumber, idProofNumber);
+                    if (checkResult && checkResult.exists) {
+                        showErrorModal(checkResult.message || "This user information already exists in our database.");
+                        registerBtn.disabled = false;
+                        registerBtn.innerHTML = originalText;
+                        return;
                     }
                     
                     // Use the updated registerUser function for registration

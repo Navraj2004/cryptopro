@@ -659,36 +659,28 @@ async function loginUser(email, password, isAdmin = false) {
  * @returns {Promise<Object>} - Registration result
  */
 async function registerUser(formData) {
-    // Convert FormData to a regular object for easier handling with proxies
+    // Convert FormData to a regular object for easier handling
     const formDataObj = {};
     for (const [key, value] of formData.entries()) {
-        // Skip file for now - we'll handle it separately
-        if (!(value instanceof File)) {
+        if (key === 'idProofFile') {
+            // Handle file upload by converting to base64
+            try {
+                const base64Data = await convertFileToBase64(value);
+                formDataObj.idProofBase64 = base64Data;
+                formDataObj.idProofFilename = value.name;
+                formDataObj.idProofType = value.type;
+            } catch (fileError) {
+                console.error("Error processing ID proof file:", fileError);
+                throw new Error("Could not process ID proof file. Please try again with a valid JPG image.");
+            }
+        } else {
             formDataObj[key] = value;
         }
-    }
-    
-    // Check if we have a file to upload
-    const idProofFile = formData.get('idProof') || formData.get('idProofFile');
-    if (idProofFile && idProofFile instanceof File) {
-        // Convert file to base64 to send through JSON
-        formDataObj.idProofFilename = idProofFile.name;
-        formDataObj.idProofType = idProofFile.type;
-        
-        // Read file as base64
-        const base64File = await new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result.split(',')[1]);
-            reader.readAsDataURL(idProofFile);
-        });
-        
-        formDataObj.idProofBase64 = base64File;
     }
     
     try {
         console.log("Sending registration data to server...");
         
-        // Direct registration to the server
         const response = await fetch(`${API_BASE_URL}/register`, {
             method: 'POST',
             headers: {
@@ -699,27 +691,44 @@ async function registerUser(formData) {
             body: JSON.stringify(formDataObj)
         });
         
-        // Process the response
-        if (response.ok) {
-            try {
-                return await response.json();
-            } catch (jsonError) {
-                // If parsing fails, assume success with generic message
-                return { success: true, message: "Registration successful" };
-            }
-        } else {
-            // Try to get error details
-            try {
-                const errorData = await response.json();
-                throw new Error(errorData.message || `Registration failed: ${response.status}`);
-            } catch (jsonError) {
-                throw new Error(`Registration failed: ${response.status}`);
-            }
+        // Handle non-JSON responses
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+            const textResponse = await response.text();
+            console.warn("Non-JSON response received:", textResponse);
+            throw new Error(`Registration failed: ${response.status} - ${textResponse.substring(0, 100)}`);
         }
+        
+        // Process the response
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.message || `Registration failed: ${response.status}`);
+        }
+        
+        return data;
     } catch (error) {
         console.error("Registration error:", error);
         throw error;
     }
+}
+
+/**
+ * Helper function to convert a file to base64
+ * @param {File} file - The file to convert
+ * @returns {Promise<string>} - Promise resolving to base64 string
+ */
+function convertFileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+            // Extract the base64 data part (remove data:image/jpeg;base64, prefix)
+            const base64String = reader.result.split(',')[1];
+            resolve(base64String);
+        };
+        reader.onerror = error => reject(error);
+    });
 }
 
 /**
@@ -731,10 +740,14 @@ async function registerUser(formData) {
  */
 async function checkExistingUser(email, contactNumber, idProofNumber) {
     try {
+        console.log("Checking if user exists with:", { email, contactNumber, idProofNumber });
+        
         const response = await fetch(`${API_BASE_URL}/check-user-exists`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Origin': window.location.origin
             },
             body: JSON.stringify({
                 email,
@@ -742,6 +755,13 @@ async function checkExistingUser(email, contactNumber, idProofNumber) {
                 idProofNumber
             })
         });
+        
+        // Handle non-JSON responses (like error text)
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+            console.warn("Non-JSON response received:", await response.text());
+            return { exists: false, message: "Could not verify user information" };
+        }
         
         const data = await response.json();
         
@@ -755,7 +775,8 @@ async function checkExistingUser(email, contactNumber, idProofNumber) {
             }
             
             // For other errors
-            throw new Error(data.message || 'Error checking user data');
+            console.warn("Error response from server:", data);
+            return { exists: false, message: data.message || 'Error checking user data' };
         }
         
         return {
@@ -764,7 +785,8 @@ async function checkExistingUser(email, contactNumber, idProofNumber) {
         };
     } catch (error) {
         console.error("Error checking existing user data:", error);
-        throw error;
+        // Return a non-throwing result so the registration can still proceed
+        return { exists: false, message: "Could not verify user information" };
     }
 }
 
