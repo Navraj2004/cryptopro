@@ -154,9 +154,22 @@ app.post('/register', async (req, res) => {
   }
 
   try {
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ success: false, message: 'Email already exists' });
+    // Check if email already exists
+    const existingEmail = await User.findOne({ email });
+    if (existingEmail) {
+      return res.status(400).json({ success: false, message: 'Email address already exists. Please use a different email.' });
+    }
+
+    // Check if contact number already exists
+    const existingContact = await User.findOne({ contactNumber });
+    if (existingContact) {
+      return res.status(400).json({ success: false, message: 'Contact number already exists. Please use a different contact number.' });
+    }
+
+    // Check if ID proof number already exists
+    const existingIdProof = await User.findOne({ idProofNumber });
+    if (existingIdProof) {
+      return res.status(400).json({ success: false, message: 'ID proof number already exists. Please verify your information.' });
     }
 
     // Convert base64 to buffer
