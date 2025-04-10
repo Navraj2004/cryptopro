@@ -324,8 +324,9 @@ async function getWalletData() {
                         purchasePrice: (totalInvested / holding.quantity).toFixed(2),
                         currentPrice: currentPrice.toFixed(2),
                         totalPrice: totalValue.toFixed(2),
-                        change: `${changePrefix}${formattedPercentChange}%`,
-                        changeClass: changeClass
+                        change: `${changePrefix}${formattedPercentChange}`,
+                        changeClass: changeClass,
+                        changeValue: percentChange
                     });
                 }
             } catch (error) {
@@ -342,8 +343,9 @@ async function getWalletData() {
                     purchasePrice: (holding.totalInvested / holding.quantity).toFixed(2),
                     currentPrice: mockPrice.toFixed(2),
                     totalPrice: (holding.quantity * mockPrice).toFixed(2),
-                    change: '+0.00%',
-                    changeClass: 'text-muted'
+                    change: '+0.00',
+                    changeClass: 'text-muted',
+                    changeValue: 0.0
                 });
             }
         }

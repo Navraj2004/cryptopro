@@ -1162,9 +1162,22 @@
                 holdings.forEach((item) => {
                     const row = document.createElement("tr");
                     
+                    // Properly extract and parse the change value
+                    let changeValue;
+                    if (typeof item.change === 'string') {
+                        // Remove any + sign and % symbol before parsing
+                        changeValue = parseFloat(item.change.replace(/[+%]/g, ''));
+                    } else {
+                        changeValue = parseFloat(item.change) || 0;
+                    }
+                    
                     // Determine color class based on change value
-                    const changeValue = parseFloat(item.change.replace('%', '').replace('+', ''));
                     const changeColorClass = changeValue >= 0 ? 'text-success' : 'text-danger';
+                    
+                    // Format the change value with + or - sign
+                    const changeDisplay = changeValue >= 0 
+                        ? `+${changeValue.toFixed(2)}%` 
+                        : `${changeValue.toFixed(2)}%`;
                     
                     row.innerHTML = `
                         <td>
@@ -1179,8 +1192,8 @@
                             </div>
                         </td>
                         <td>${item.quantity}</td>
-                        <td>$${item.totalPrice}</td>
-                        <td class="${changeColorClass}">${item.change}</td>
+                        <td>$${parseFloat(item.totalPrice).toFixed(2)}</td>
+                        <td class="${changeColorClass}">${changeDisplay}</td>
                     `;
                     
                     walletTableBody.appendChild(row);
