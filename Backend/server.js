@@ -17,7 +17,12 @@ const apiKey = process.env.CMC_API_KEY; // Crypto API key
 const mongodbUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/cryptoPro';
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ['https://cryptopro-1.onrender.com', 'http://localhost:3000', 'http://localhost:5000', 'http://127.0.0.1:5500'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With']
+}));
 app.use(bodyParser.json());
 
 app.use(express.json());
@@ -178,7 +183,6 @@ app.post('/register', async (req, res) => {
 });
 
 // Login Route
-// Login Route
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -189,16 +193,20 @@ app.post('/login', async (req, res) => {
   try {
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ success: false, message: 'User not found' });
+      return res.status(404).json({ success: false, message: 'User not found' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).json({ success: false, message: 'Incorrect password' });
+      return res.status(401).json({ success: false, message: 'Incorrect password' });
     }
 
     const token = jwt.sign({ email: user.email }, jwtSecret, { expiresIn: '1h' });
 
+    // Set CORS headers explicitly for this response
+    res.header('Access-Control-Allow-Origin', req.headers.origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    
     res.status(200).json({
       success: true,
       message: 'Login successful',

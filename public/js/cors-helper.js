@@ -614,17 +614,43 @@ async function getUserData() {
 async function loginUser(email, password, isAdmin = false) {
     const endpoint = isAdmin ? '/api/admin/login' : '/login';
     
-    const result = await fetchWithCORS(endpoint, {
-        method: 'POST',
-        body: JSON.stringify({ email, password })
-    });
-    
-    // Store token if provided in the response
-    if (result.token) {
-        localStorage.setItem('token', result.token);
+    try {
+        console.log("Sending login request to server...");
+        
+        // Direct login to the server
+        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Origin': window.location.origin
+            },
+            body: JSON.stringify({ email, password })
+        });
+        
+        // Process the response
+        if (response.ok) {
+            const result = await response.json();
+            
+            // Store token if provided in the response
+            if (result.token) {
+                localStorage.setItem('token', result.token);
+            }
+            
+            return result;
+        } else {
+            // Try to get error details
+            try {
+                const errorData = await response.json();
+                throw new Error(errorData.message || `Login failed: ${response.status}`);
+            } catch (jsonError) {
+                throw new Error(`Login failed: ${response.status}`);
+            }
+        }
+    } catch (error) {
+        console.error("Login error:", error);
+        throw error;
     }
-    
-    return result;
 }
 
 /**
