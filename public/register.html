@@ -577,43 +577,19 @@
                 formData.append("idProofFile", idProofFile);
         
                 try {
-                    // For testing purposes - simulate successful registration
-                    // Comment this out when connecting to real backend
-                    if (window.location.hostname === 'localhost' || !window.CorsHelper) {
-                        // Create a demo user in localStorage
-                        const users = JSON.parse(localStorage.getItem('cryptoPro_users') || '{}');
-                        const userId = 'user' + Date.now();
-                        users[userId] = {
-                            id: userId,
-                            name: name,
-                            email: email,
-                            contactNumber: contactNumber,
-                            idProofNumber: idProofNumber,
-                            dob: dob,
-                            // Don't store actual password in production
-                            // This is just for demo
-                            password: password 
-                        };
-                        localStorage.setItem('cryptoPro_users', JSON.stringify(users));
-                        
-                        setTimeout(() => {
-                            // Show success modal
-                            const successModal = new bootstrap.Modal(document.getElementById("successModal"));
-                            successModal.show();
-            
-                            // Redirect only when the user clicks "Go to Login"
-                            document.getElementById("redirectLogin").addEventListener("click", () => {
-                                window.location.href = "login.html";
-                            });
-                            
-                            // Reset button state
-                            registerBtn.disabled = false;
-                            registerBtn.innerHTML = originalText;
-                        }, 1500);
-                        return;
+                    // First check if email, contact number, or ID proof already exists in MongoDB
+                    try {
+                        const checkResult = await CorsHelper.checkExistingUser(email, contactNumber, idProofNumber);
+                        if (checkResult.exists) {
+                            showErrorModal(checkResult.message || "This user information already exists in our database.");
+                            return;
+                        }
+                    } catch (checkError) {
+                        console.error("Error checking existing user:", checkError);
+                        // Continue with registration attempt even if the check fails
                     }
                     
-                    // Use CORS helper for registration with real backend
+                    // Use CORS helper for registration with backend to MongoDB
                     const result = await CorsHelper.registerUser(formData);
                     
                     if (result.success) {
@@ -626,7 +602,16 @@
                             window.location.href = "login.html";
                         });
                     } else {
-                        showErrorModal(result.message || "Registration failed. Please try again."); 
+                        // Check if the error is due to duplicate user info
+                        if (result.message && (
+                            result.message.includes("email already exists") || 
+                            result.message.includes("contact number already exists") || 
+                            result.message.includes("ID proof number already exists")
+                        )) {
+                            showErrorModal(result.message);
+                        } else {
+                            showErrorModal(result.message || "Registration failed. Please try again.");
+                        }
                     }
                 } catch (error) {
                     console.error("Error during registration:", error);

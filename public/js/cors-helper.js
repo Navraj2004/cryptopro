@@ -22,9 +22,61 @@ let walletDataCache = null;
 let walletCacheTimestamp = 0;
 const CACHE_DURATION = 10000; // Cache duration in milliseconds (10 seconds)
 
+// Server availability flag
+let _isServerAvailable = null;
+let serverCheckTimestamp = 0;
+const SERVER_CHECK_DURATION = 60000; // Check server availability every minute
+
 // Auto-logout functionality
 let inactivityTimer;
 const INACTIVITY_TIMEOUT = 4 * 60 * 1000; // 4 minutes in milliseconds
+
+// Construct the CorsHelper object for global access
+const CorsHelper = {
+    getApiBaseUrl: () => API_BASE_URL,
+    fetchWithCORS,
+    loginUser,
+    registerUser,
+    getWalletData,
+    mockCryptoData,
+    isServerAvailable,
+    checkExistingUser
+};
+
+/**
+ * Checks if the server is available
+ * @returns {Promise<boolean>} - Promise resolving to true if server is available
+ */
+async function isServerAvailable() {
+    // Use cached result if available and not expired
+    const now = Date.now();
+    if (_isServerAvailable !== null && (now - serverCheckTimestamp < SERVER_CHECK_DURATION)) {
+        return _isServerAvailable;
+    }
+    
+    try {
+        // Ping the server with a simple health check
+        const response = await fetch(`${API_BASE_URL}/health`, { 
+            method: 'GET',
+            mode: 'cors',
+            cache: 'no-store',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            timeout: 5000 // 5 second timeout
+        });
+        
+        _isServerAvailable = response.ok;
+        serverCheckTimestamp = now;
+        return _isServerAvailable;
+    } catch (error) {
+        console.warn('Server availability check failed:', error);
+        _isServerAvailable = false;
+        serverCheckTimestamp = now;
+        return false;
+    }
+}
 
 // Function to reset the inactivity timer
 function resetInactivityTimer() {
@@ -552,13 +604,51 @@ async function registerUser(formData) {
     });
 }
 
+/**
+ * Check if a user with the given email, contact number, or ID proof already exists
+ * @param {string} email - User's email
+ * @param {string} contactNumber - User's contact number
+ * @param {string} idProofNumber - User's ID proof number
+ * @returns {Promise<Object>} - Promise resolving to {exists: boolean, message: string}
+ */
+async function checkExistingUser(email, contactNumber, idProofNumber) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/check-user-exists`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email,
+                contactNumber,
+                idProofNumber
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            // If response is not ok, but it's because email/contact/id exists
+            if (data.exists) {
+                return {
+                    exists: true,
+                    message: data.message
+                };
+            }
+            
+            // For other errors
+            throw new Error(data.message || 'Error checking user data');
+        }
+        
+        return {
+            exists: data.exists,
+            message: data.message
+        };
+    } catch (error) {
+        console.error("Error checking existing user data:", error);
+        throw error;
+    }
+}
+
 // Export the helper functions for use in other scripts
-window.CorsHelper = {
-    fetchWithCORS,
-    checkAuthentication,
-    getUserData,
-    loginUser,
-    registerUser,
-    API_BASE_URL,
-    getWalletData
-}; 
+window.CorsHelper = CorsHelper; 
