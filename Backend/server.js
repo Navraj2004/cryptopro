@@ -7,9 +7,11 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const axios = require('axios');
+const path = require('path');
+const authRoutes = require('./routes/auth');
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 5000;
 const jwtSecret = process.env.JWT_SECRET || 'default_jwt_secret';
 const apiKey = process.env.CMC_API_KEY; // Crypto API key
 
@@ -17,11 +19,37 @@ const apiKey = process.env.CMC_API_KEY; // Crypto API key
 const mongodbUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/cryptoPro';
 
 // Middleware
-app.use(cors());
-app.use(bodyParser.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-app.use(express.json());
-const session = require('express-session');
+app.use(cors({
+    origin: function(origin, callback) {
+        // Allow requests with no origin (like mobile apps, curl requests)
+        if (!origin) return callback(null, true);
+        
+        const allowedOrigins = [
+            'https://cryptopro-1.onrender.com',
+            'http://localhost:3000',
+            'http://localhost:5000',
+            'http://127.0.0.1:5500'
+        ];
+        
+        if (allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'Accept'],
+    credentials: true,
+    preflightContinue: false,
+    optionsSuccessStatus: 204
+}));
+
+// Static files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Use session middleware
 app.use(
     session({
@@ -519,15 +547,38 @@ app.get('/admin/users', authenticateAdmin, async (req, res) => {
   }
 });
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'ok', message: 'Server is running' });
+});
 
+// Routes
+app.use('/api', authRoutes);
 
+// Fallback route for API endpoints
+app.all('/api/*', (req, res) => {
+    res.status(404).json({ success: false, message: 'API endpoint not found' });
+});
 
-// Handle Undefined Routes
-app.use((req, res) => {
-    res.status(404).send('Route not found');
+// Handle registration at both paths for compatibility
+app.post('/register', (req, res) => {
+    console.log('Redirecting registration request to /api/register');
+    req.url = '/api/register';
+    app.handle(req, res);
+});
+
+// Error handler
+app.use((err, req, res, next) => {
+    console.error('Server error:', err.stack);
+    res.status(500).json({
+        success: false,
+        message: 'Something went wrong on the server',
+        error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
 });
 
 // Start the Server
 app.listen(port, '0.0.0.0', () => {
     console.log(`Server running at http://0.0.0.0:${port}`);
+    console.log(`MongoDB URI: ${process.env.MONGODB_URI ? 'Configured' : 'Missing'}`);
 });

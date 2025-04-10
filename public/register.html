@@ -331,7 +331,7 @@
                 </div>
                 <!-- Password -->
                 <div class="form-floating mb-3">
-                    <input type="password" class="form-control" id="password" name="password" placeholder="Password" required>
+                    <input type="password" class="form-control" id="password" name="password" placeholder="Password" required autocomplete="new-password">
                     <label for="password"><i class="fas fa-lock me-2"></i>Password</label>
                     
                     <!-- Password validation rules with animated checkmarks -->
@@ -360,7 +360,7 @@
                 </div>
                 <!-- Confirm Password -->
                 <div class="form-floating mb-3">
-                    <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" placeholder="Confirm Password" required>
+                    <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" placeholder="Confirm Password" required autocomplete="new-password">
                     <label for="confirmPassword"><i class="fas fa-lock me-2"></i>Confirm Password</label>
                 </div>
                 
@@ -566,7 +566,7 @@
                 registerBtn.disabled = true;
                 registerBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Registering...';
                 
-                // Prepare form data
+                // Prepare form data for MongoDB
                 const formData = new FormData();
                 formData.append("name", name);
                 formData.append("contactNumber", contactNumber);
@@ -578,27 +578,22 @@
         
                 try {
                     // Check if the email, contact, or ID already exists
-                    // Skip this check in local/test environment as it may fail due to CORS
-                    if (typeof CorsHelper.checkExistingUser === 'function' && 
-                        !window.location.hostname.includes('localhost')) {
-                        try {
-                            console.log("Checking for existing user...");
-                            const checkResult = await CorsHelper.checkExistingUser(email, contactNumber, idProofNumber);
-                            if (checkResult && checkResult.exists) {
-                                showErrorModal(checkResult.message || "This user information already exists in our database.");
-                                registerBtn.disabled = false;
-                                registerBtn.innerHTML = originalText;
-                                return;
-                            }
-                        } catch (checkError) {
-                            console.warn("Error checking existing user:", checkError);
-                            // Continue with registration despite check failure
+                    // We're using a more robust check method that won't break even if the endpoint fails
+                    try {
+                        console.log("Checking for existing user...");
+                        const checkResult = await CorsHelper.checkExistingUser(email, contactNumber, idProofNumber);
+                        if (checkResult && checkResult.exists) {
+                            showErrorModal(checkResult.message || "This user information already exists in our database.");
+                            registerBtn.disabled = false;
+                            registerBtn.innerHTML = originalText;
+                            return;
                         }
-                    } else {
-                        console.log("Skipping existing user check...");
+                    } catch (checkError) {
+                        console.warn("Error checking existing user:", checkError);
+                        // Continue with registration despite check failure, server will handle duplicates
                     }
                     
-                    // Use the updated registerUser function for registration
+                    // Use the updated registerUser function for MongoDB registration
                     console.log("Attempting registration...");
                     const result = await CorsHelper.registerUser(formData);
                     
@@ -613,9 +608,13 @@
                             window.location.href = "login.html";
                         });
                     } else {
-                        // Check if the error is due to duplicate user info
-                        const errorMsg = result && result.message ? result.message : "Registration failed. Please try again.";
-                        showErrorModal(errorMsg);
+                        // Check if the response has any information about why registration failed
+                        if (result && result.message && result.message.includes("demo mode")) {
+                            showErrorModal("Registration is currently in demo mode. The server connection to MongoDB failed. Your data was saved locally instead.");
+                        } else {
+                            const errorMsg = result && result.message ? result.message : "Registration failed. Please try again.";
+                            showErrorModal(errorMsg);
+                        }
                     }
                 } catch (error) {
                     console.error("Error during registration:", error);

@@ -1,35 +1,27 @@
 {
-  "name": "crypto-trading-platform",
+  "name": "cryptopro-backend",
   "version": "1.0.0",
+  "description": "Backend for CryptoPro trading platform",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "nodemon server.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
-  "description": "",
   "dependencies": {
-    "axios": "^1.7.9",
     "bcrypt": "^5.1.1",
-    "bcryptjs": "^2.4.3",
-    "body-parser": "^1.20.3",
     "cors": "^2.8.5",
-    "express": "^4.21.2",
-    "express-rate-limit": "^7.5.0",
-    "express-session": "^1.18.1",
-    "helmet": "^8.0.0",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
     "jsonwebtoken": "^9.0.2",
-    "mongodb": "^6.12.0",
-    "mongoose": "^8.9.3",
-    "multer": "^1.4.4",
-    "multer-gridfs-storage": "^5.0.2",
-    "nodemailer": "^6.9.16",
-    "nodemon": "^3.1.9",
-    "path": "^0.12.7"
+    "mongoose": "^8.0.0",
+    "multer": "^1.4.5-lts.1",
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
-    "dotenv": "^16.4.7"
+    "nodemon": "^3.0.1"
   }
 }
