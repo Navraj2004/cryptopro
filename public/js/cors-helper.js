@@ -654,7 +654,10 @@ async function loginUser(email, password, isAdmin = false) {
             // Try to get error details
             try {
                 const errorData = await response.json();
-                throw new Error(errorData.message || `Login failed: ${response.status}`);
+                return {
+                    success: false,
+                    message: errorData.message || `Login failed: ${response.status}`
+                };
             } catch (jsonError) {
                 throw new Error(`Login failed: ${response.status}`);
             }

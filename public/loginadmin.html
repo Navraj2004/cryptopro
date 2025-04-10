@@ -214,7 +214,7 @@
             <h2>Secure Admin Access</h2>
             <form id="loginForm">
                 <div class="form-floating mb-3">
-                    <input type="email" id="email" class="form-control" placeholder="Email" required>
+                    <input type="email" id="email" class="form-control" placeholder="Email" autocomplete="username" required>
                     <label for="email"><i class="fas fa-envelope me-2"></i>Email</label>
                 </div>
                 <div class="form-floating mb-4">
@@ -289,13 +289,13 @@
                             window.location.href = 'admin.html';
                         }, 2000);
                     } else {
-                        // Always show a clear error message
-                        if (data.message === "Incorrect password" || data.message?.includes("password")) {
-                            $errorMsg.text("Wrong password! Please try again.").show();
-                        } else if (data.message === "User not found" || data.message?.includes("not found")) {
-                            $errorMsg.text("No admin found with this email.").show();
+                        // Display specific error messages
+                        if (data.message && data.message.includes('Email not found')) {
+                            $errorMsg.text('Email not found. Please check your email address.').show();
+                        } else if (data.message && data.message.includes('Incorrect password')) {
+                            $errorMsg.text('Incorrect password. Please try again.').show();
                         } else {
-                            $errorMsg.text("Login failed: " + (data.message || "Please try again")).show();
+                            $errorMsg.text(data.message || 'Login failed. Please try again.').show();
                         }
                     }
                 })

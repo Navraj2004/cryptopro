@@ -265,7 +265,7 @@
             <h2>Welcome Back</h2>
             <form id="loginForm">
                 <div class="form-floating mb-3">
-                    <input type="email" id="username" class="form-control" placeholder="Email Address" required>
+                    <input type="email" id="username" class="form-control" placeholder="Email Address" autocomplete="username" required>
                     <label for="username"><i class="fas fa-envelope me-2"></i>Email Address</label>
                 </div>
                 <div class="form-floating mb-4">
@@ -381,8 +381,16 @@
             const result = await CorsHelper.loginUser(email, password, false);
 
             if (!result.success) {
-                errorMessage.style.display = "block";
-                errorMessage.textContent = result.message || "Login failed. Please try again.";
+                if (result.message === 'Email not found') {
+                    errorMessage.style.display = "block";
+                    errorMessage.textContent = "Email not found. Please check your email address.";
+                } else if (result.message === 'Incorrect password') {
+                    errorMessage.style.display = "block";
+                    errorMessage.textContent = "Incorrect password. Please try again.";
+                } else {
+                    errorMessage.style.display = "block";
+                    errorMessage.textContent = result.message || "Login failed. Please try again.";
+                }
                 // Reset button state
                 loginBtn.disabled = false;
                 loginText.textContent = "Login";
