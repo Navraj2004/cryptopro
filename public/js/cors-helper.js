@@ -628,100 +628,6 @@ async function loginUser(email, password, isAdmin = false) {
 }
 
 /**
- * Check if a user with the given email, contact number, or ID proof already exists
- * @param {string} email - User's email
- * @param {string} contactNumber - User's contact number
- * @param {string} idProofNumber - User's ID proof number
- * @returns {Promise<Object>} - Promise resolving to {exists: boolean, message: string}
- */
-async function checkExistingUser(email, contactNumber, idProofNumber) {
-    try {
-        // First try a direct approach with the API
-        console.log("Checking user existence with MongoDB...");
-        
-        // Use the API endpoint that's actually implemented
-        const response = await fetch(`${API_BASE_URL}/api/check-user`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'Origin': window.location.origin
-            },
-            mode: 'cors',
-            body: JSON.stringify({
-                email,
-                contactNumber,
-                idProofNumber
-            })
-        });
-        
-        // If we get a proper response, parse it
-        if (response.ok) {
-            try {
-                const data = await response.json();
-                return {
-                    exists: data.exists,
-                    message: data.message
-                };
-            } catch (jsonError) {
-                console.warn("Error parsing JSON from check-user endpoint:", jsonError);
-                // Failed to parse JSON, continue to see if we got a plain text response
-                const textResponse = await response.text();
-                
-                // Check if the response text indicates a user exists
-                if (textResponse.includes("already exists") || 
-                    textResponse.includes("already registered") ||
-                    textResponse.includes("already in use")) {
-                    return {
-                        exists: true,
-                        message: textResponse
-                    };
-                }
-                
-                // Otherwise continue with checking
-                return { exists: false, message: null };
-            }
-        } else {
-            // Try to handle error responses
-            try {
-                const errorData = await response.json();
-                if (errorData.exists) {
-                    return {
-                        exists: true,
-                        message: errorData.message
-                    };
-                }
-            } catch (e) {
-                // If we couldn't parse JSON, try to get text
-                try {
-                    const errorText = await response.text();
-                    console.warn("Check user endpoint response:", errorText);
-                    
-                    // If error text suggests a user exists
-                    if (errorText.includes("already exists") || 
-                        errorText.includes("already registered") ||
-                        errorText.includes("already in use")) {
-                        return {
-                            exists: true,
-                            message: errorText
-                        };
-                    }
-                } catch (textError) {
-                    console.warn("Could not get error text:", textError);
-                }
-            }
-        }
-        
-        // If we reach here, no user exists as far as we can tell
-        return { exists: false, message: null };
-    } catch (error) {
-        console.error("Error checking existing user data:", error);
-        // Continue with registration process even if check fails
-        return { exists: false, message: null };
-    }
-}
-
-/**
  * Registers a new user with form data including file upload
  * @param {FormData} formData - Form data with user information and ID proof file
  * @returns {Promise<Object>} - Registration result
@@ -753,11 +659,20 @@ async function registerUser(formData) {
         formDataObj.idProofBase64 = base64File;
     }
     
+    // Try direct registration first with preflight handling
     try {
-        console.log("Attempting direct registration to MongoDB...");
+        console.log("Attempting direct registration to server...");
         
-        // Try the properly implemented API endpoint for registration
-        const response = await fetch(`${API_BASE_URL}/api/register`, {
+        // For direct registration, we'll use the no-cors mode first to check server availability
+        // This won't return useful data but tells us if the server is reachable
+        const serverCheckResponse = await fetch(`${API_BASE_URL}/health`, {
+            method: 'GET',
+            mode: 'no-cors'
+        });
+        
+        // If we reached this point, server is reachable, now try actual registration
+        // We'll use a simple POST request directly to the server
+        const response = await fetch(`${API_BASE_URL}/register`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -771,11 +686,8 @@ async function registerUser(formData) {
         // Process the response
         if (response.ok) {
             try {
-                const data = await response.json();
-                console.log("Registration successful with MongoDB:", data);
-                return data;
+                return await response.json();
             } catch (jsonError) {
-                console.warn("Error parsing JSON from successful registration:", jsonError);
                 // If parsing fails, assume success with generic message
                 return { success: true, message: "Registration successful" };
             }
@@ -785,48 +697,11 @@ async function registerUser(formData) {
                 const errorData = await response.json();
                 throw new Error(errorData.message || `Registration failed: ${response.status}`);
             } catch (jsonError) {
-                // Try to get error text if JSON parsing fails
-                try {
-                    const errorText = await response.text();
-                    throw new Error(errorText || `Registration failed: ${response.status}`);
-                } catch (textError) {
-                    throw new Error(`Registration failed: ${response.status}`);
-                }
+                throw new Error(`Registration failed: ${response.status}`);
             }
         }
     } catch (directError) {
         console.warn("Direct registration failed:", directError);
-        
-        // Try one more time with a different endpoint format (/register)
-        try {
-            console.log("Trying alternative registration endpoint...");
-            const response = await fetch(`${API_BASE_URL}/register`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'Origin': window.location.origin
-                },
-                mode: 'cors',
-                body: JSON.stringify(formDataObj)
-            });
-            
-            if (response.ok) {
-                try {
-                    const data = await response.json();
-                    console.log("Registration successful with alternative endpoint:", data);
-                    return data;
-                } catch (jsonError) {
-                    // If parsing fails, assume success with generic message
-                    return { success: true, message: "Registration successful" };
-                }
-            } else {
-                // Failed again, continue to mock/fallback
-                console.warn("Alternative registration endpoint also failed");
-            }
-        } catch (altError) {
-            console.warn("Alternative registration attempt failed:", altError);
-        }
         
         // For testing/demo purposes - create a mock successful registration
         if (window.location.hostname.includes('localhost') || 
@@ -848,7 +723,7 @@ async function registerUser(formData) {
                     idProofNumber: formDataObj.idProofNumber,
                     dob: formDataObj.dob,
                     createdAt: new Date().toISOString(),
-                    // Don't store actual password in real app!
+                    // Don't store password in real app!
                     hashedPassword: btoa(formDataObj.password) // Simple encoding for demo
                 };
                 
@@ -872,10 +747,56 @@ async function registerUser(formData) {
         }
         
         // If we get here, try fallback to proxies
-        return await fetchWithCORS('/api/register', {
+        return await fetchWithCORS('/register', {
             method: 'POST',
             body: JSON.stringify(formDataObj)
         });
+    }
+}
+
+/**
+ * Check if a user with the given email, contact number, or ID proof already exists
+ * @param {string} email - User's email
+ * @param {string} contactNumber - User's contact number
+ * @param {string} idProofNumber - User's ID proof number
+ * @returns {Promise<Object>} - Promise resolving to {exists: boolean, message: string}
+ */
+async function checkExistingUser(email, contactNumber, idProofNumber) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/check-user-exists`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email,
+                contactNumber,
+                idProofNumber
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            // If response is not ok, but it's because email/contact/id exists
+            if (data.exists) {
+                return {
+                    exists: true,
+                    message: data.message
+                };
+            }
+            
+            // For other errors
+            throw new Error(data.message || 'Error checking user data');
+        }
+        
+        return {
+            exists: data.exists,
+            message: data.message
+        };
+    } catch (error) {
+        console.error("Error checking existing user data:", error);
+        throw error;
     }
 }
 
