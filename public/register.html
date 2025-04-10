@@ -577,22 +577,33 @@
                 formData.append("idProofFile", idProofFile);
         
                 try {
-                    // First check if email, contact number, or ID proof already exists in MongoDB
-                    try {
-                        const checkResult = await CorsHelper.checkExistingUser(email, contactNumber, idProofNumber);
-                        if (checkResult.exists) {
-                            showErrorModal(checkResult.message || "This user information already exists in our database.");
-                            return;
+                    // Check if the email, contact, or ID already exists
+                    // Skip this check in local/test environment as it may fail due to CORS
+                    if (typeof CorsHelper.checkExistingUser === 'function' && 
+                        !window.location.hostname.includes('localhost')) {
+                        try {
+                            console.log("Checking for existing user...");
+                            const checkResult = await CorsHelper.checkExistingUser(email, contactNumber, idProofNumber);
+                            if (checkResult && checkResult.exists) {
+                                showErrorModal(checkResult.message || "This user information already exists in our database.");
+                                registerBtn.disabled = false;
+                                registerBtn.innerHTML = originalText;
+                                return;
+                            }
+                        } catch (checkError) {
+                            console.warn("Error checking existing user:", checkError);
+                            // Continue with registration despite check failure
                         }
-                    } catch (checkError) {
-                        console.error("Error checking existing user:", checkError);
-                        // Continue with registration attempt even if the check fails
+                    } else {
+                        console.log("Skipping existing user check...");
                     }
                     
-                    // Use CORS helper for registration with backend to MongoDB
+                    // Use the updated registerUser function for registration
+                    console.log("Attempting registration...");
                     const result = await CorsHelper.registerUser(formData);
                     
-                    if (result.success) {
+                    if (result && result.success) {
+                        console.log("Registration successful:", result);
                         // Show success modal
                         const successModal = new bootstrap.Modal(document.getElementById("successModal"));
                         successModal.show();
@@ -603,15 +614,8 @@
                         });
                     } else {
                         // Check if the error is due to duplicate user info
-                        if (result.message && (
-                            result.message.includes("email already exists") || 
-                            result.message.includes("contact number already exists") || 
-                            result.message.includes("ID proof number already exists")
-                        )) {
-                            showErrorModal(result.message);
-                        } else {
-                            showErrorModal(result.message || "Registration failed. Please try again.");
-                        }
+                        const errorMsg = result && result.message ? result.message : "Registration failed. Please try again.";
+                        showErrorModal(errorMsg);
                     }
                 } catch (error) {
                     console.error("Error during registration:", error);
