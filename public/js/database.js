@@ -196,17 +196,35 @@ const Database = {
             for (const coin in wallet) {
                 // Only include coins with positive quantity
                 if (wallet[coin].quantity > 0) {
-                    // Generate random change for demo purposes
-                    const randomChange = ((Math.random() * 10) - 5);
-                    const isPositive = randomChange >= 0;
+                    // Get current price for calculation (using a more realistic approach)
+                    const basePrice = {
+                        'Bitcoin': 50000,
+                        'Ethereum': 3000,
+                        'Dogecoin': 0.25,
+                        'Ripple': 1.2,
+                        'Cardano': 2.5,
+                        'Solana': 150,
+                        'Polkadot': 30,
+                        'Litecoin': 180
+                    }[coin] || 100;
+                    
+                    // Add some small variance (±2%)
+                    const variance = basePrice * 0.02;
+                    const currentPrice = basePrice + (Math.random() * variance * 2 - variance);
+                    
+                    // Calculate actual change based on purchase price and current price
+                    const purchasePrice = wallet[coin].totalInvested / wallet[coin].quantity;
+                    const totalValue = wallet[coin].quantity * currentPrice;
+                    const percentChange = ((currentPrice - purchasePrice) / purchasePrice) * 100;
+                    const isPositive = percentChange >= 0;
                     
                     formattedWallet.push({
                         coin: coin,
                         icon: coinIcons[coin] || 'fas fa-coins',
                         quantity: wallet[coin].quantity.toFixed(5),
-                        totalPrice: wallet[coin].totalInvested,
-                        // Format change with + or - sign
-                        change: `${isPositive ? '+' : ''}${randomChange.toFixed(1)}%`,
+                        totalPrice: totalValue.toFixed(2),
+                        // Format change with + or - sign based on actual calculation
+                        change: `${isPositive ? '+' : ''}${percentChange.toFixed(1)}%`,
                         changeClass: isPositive ? 'text-success' : 'text-danger'
                     });
                 }
