@@ -31,94 +31,6 @@ const SERVER_CHECK_DURATION = 60000; // Check server availability every minute
 let inactivityTimer;
 const INACTIVITY_TIMEOUT = 4 * 60 * 1000; // 4 minutes in milliseconds
 
-// Construct the CorsHelper object for global access
-const CorsHelper = {
-    getApiBaseUrl: () => API_BASE_URL,
-    fetchWithCORS,
-    loginUser,
-    registerUser,
-    getWalletData,
-    mockCryptoData,
-    isServerAvailable,
-    checkExistingUser
-};
-
-/**
- * Checks if the server is available
- * @returns {Promise<boolean>} - Promise resolving to true if server is available
- */
-async function isServerAvailable() {
-    // Use cached result if available and not expired
-    const now = Date.now();
-    if (_isServerAvailable !== null && (now - serverCheckTimestamp < SERVER_CHECK_DURATION)) {
-        return _isServerAvailable;
-    }
-    
-    try {
-        // Ping the server with a simple health check
-        const response = await fetch(`${API_BASE_URL}/health`, { 
-            method: 'GET',
-            mode: 'cors',
-            cache: 'no-store',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            },
-            timeout: 5000 // 5 second timeout
-        });
-        
-        _isServerAvailable = response.ok;
-        serverCheckTimestamp = now;
-        return _isServerAvailable;
-    } catch (error) {
-        console.warn('Server availability check failed:', error);
-        _isServerAvailable = false;
-        serverCheckTimestamp = now;
-        return false;
-    }
-}
-
-// Function to reset the inactivity timer
-function resetInactivityTimer() {
-    clearTimeout(inactivityTimer);
-    inactivityTimer = setTimeout(logoutDueToInactivity, INACTIVITY_TIMEOUT);
-}
-
-// Function to handle logout due to inactivity
-function logoutDueToInactivity() {
-    // Clear authentication data
-    localStorage.removeItem('token');
-    localStorage.removeItem('username');
-    localStorage.removeItem('isAdmin');
-    
-    // Show alert
-    alert('You have been logged out due to inactivity.');
-    
-    // Redirect to login page
-    window.location.href = '/login.html';
-}
-
-// Set up event listeners to reset the timer on user activity
-function setupInactivityMonitoring() {
-    // Reset timer on various user interactions
-    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
-    
-    events.forEach(event => {
-        document.addEventListener(event, resetInactivityTimer, true);
-    });
-    
-    // Initial setup of the timer
-    resetInactivityTimer();
-}
-
-// Initialize inactivity monitoring when the page loads
-document.addEventListener('DOMContentLoaded', function() {
-    // Only set up monitoring if user is logged in
-    if (localStorage.getItem('token')) {
-        setupInactivityMonitoring();
-    }
-});
-
 /**
  * Sleep function for implementing delays
  * @param {number} ms - Milliseconds to sleep
@@ -126,6 +38,176 @@ document.addEventListener('DOMContentLoaded', function() {
  */
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Generates a mock price for when the API is unavailable
+ * @param {string} symbol - Crypto symbol
+ * @returns {number} - Mock price
+ */
+function mockCryptoPrice(symbol) {
+    const basePrice = {
+        'BTC': 50000,
+        'ETH': 3000,
+        'DOGE': 0.25,
+        'XRP': 1.2,
+        'ADA': 2.5,
+        'SOL': 150,
+        'DOT': 30,
+        'LTC': 180
+    }[symbol] || 100;
+    
+    // Add some randomness (±5%)
+    const variance = basePrice * 0.05;
+    return basePrice + (Math.random() * variance * 2 - variance);
+}
+
+/**
+ * Performs a fetch request with CORS handling and fallback to proxy if needed
+ * @param {string} endpoint - The API endpoint (without the base URL)
+ * @param {Object} options - Fetch options (method, headers, body)
+ * @returns {Promise} - Promise resolving to the API response
+ */
+async function fetchWithCORS(endpoint, options = {}) {
+    // Special handler for wallet endpoints to bypass CORS issues
+    if (endpoint === '/api/wallet' || endpoint === '/api/transactions') {
+        const mockData = await getWalletData();
+        return endpoint === '/api/wallet' ? mockData.wallet : mockData.transactions;
+    }
+    
+    // Ensure we have default headers
+    const headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        ...(options.headers || {})
+    };
+
+    // Construct the full URL
+    const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
+    
+    // Try direct fetch with retries for rate limiting
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        try {
+            // First attempt - direct fetch with CORS but WITHOUT credentials
+            // This avoids the wildcard origin issue
+            const response = await fetch(url, {
+                ...options,
+                headers,
+                mode: 'cors'
+            });
+            
+            // Handle rate limiting (429 Too Many Requests)
+            if (response.status === 429) {
+                const retryAfter = response.headers.get('Retry-After') || INITIAL_RETRY_DELAY * Math.pow(2, attempt);
+                console.warn(`Rate limited. Retrying after ${retryAfter}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+                await sleep(retryAfter);
+                continue; // Retry the request
+            }
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ 
+                    message: `Server error: ${response.status}` 
+                }));
+                throw new Error(errorData.message || `Server error: ${response.status}`);
+            }
+            
+            // Parse JSON response
+            try {
+                return await response.json();
+            } catch (jsonError) {
+                // If the response isn't JSON, return it as text
+                const textResponse = await response.text();
+                return { success: true, message: textResponse };
+            }
+        } catch (error) {
+            if (attempt === MAX_RETRIES - 1) {
+                console.warn('Direct API call failed after retries, trying proxy:', error);
+                break; // Move on to proxy attempts
+            }
+            
+            // If it's not the last attempt, wait and retry
+            if (error.message.includes('rate limit') || error.message.includes('429')) {
+                const delay = INITIAL_RETRY_DELAY * Math.pow(2, attempt);
+                console.warn(`Rate limit error, retrying after ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+                await sleep(delay);
+            } else {
+                // For non-rate limit errors, break and try proxies
+                console.warn('Direct API call failed:', error);
+                break;
+            }
+        }
+    }
+    
+    // If we get here, all direct attempts failed - try proxies
+    let lastError = null;
+    
+    // Remove auth headers for proxy requests
+    const proxyHeaders = { ...headers };
+    delete proxyHeaders['Authorization']; // Auth headers usually cause CORS preflight failures with proxies
+    
+    // Try each proxy in order until one works
+    for (const proxyBaseUrl of CORS_PROXIES) {
+        try {
+            const proxyUrl = `${proxyBaseUrl}${encodeURIComponent(url)}`;
+            console.log('Attempting proxy fetch:', proxyUrl);
+            
+            // Use a different approach for CORS-Anywhere
+            const isCorsBypass = proxyBaseUrl.includes('cors-anywhere');
+            const finalHeaders = isCorsBypass ? {
+                ...proxyHeaders,
+                'X-Requested-With': 'XMLHttpRequest'
+            } : proxyHeaders;
+            
+            const proxyResponse = await fetch(proxyUrl, {
+                method: options.method || 'GET',
+                headers: finalHeaders,
+                body: options.body
+            });
+            
+            if (!proxyResponse.ok) {
+                const proxyErrorData = await proxyResponse.json().catch(() => ({
+                    message: `Proxy server error: ${proxyResponse.status}`
+                }));
+                console.warn(`Proxy ${proxyBaseUrl} failed:`, proxyErrorData.message);
+                lastError = new Error(proxyErrorData.message);
+                continue; // Try next proxy
+            }
+            
+            // Parse JSON response
+            try {
+                return await proxyResponse.json();
+            } catch (jsonError) {
+                // If the response isn't JSON, return it as text
+                const textResponse = await proxyResponse.text();
+                try {
+                    // Try to parse as JSON in case it's actually JSON
+                    return JSON.parse(textResponse);
+                } catch (parseError) {
+                    return { success: true, message: textResponse };
+                }
+            }
+        } catch (proxyError) {
+            console.warn(`Proxy ${proxyBaseUrl} failed:`, proxyError);
+            lastError = proxyError;
+            // Continue to next proxy
+        }
+    }
+    
+    // If we've tried all sources and we're calling the crypto price endpoint, return a mock response
+    if (endpoint.includes('crypto-price')) {
+        console.warn('All API connection methods failed for crypto price, returning mock data');
+        const coin = endpoint.split('=').pop(); // Extract coin symbol
+        return {
+            success: true,
+            price: mockCryptoPrice(coin),
+            symbol: coin,
+            timestamp: new Date().toISOString()
+        };
+    }
+    
+    // If all sources fail, provide a more helpful error
+    throw new Error(lastError?.message || 
+        'All API connection methods failed. The server may be temporarily unavailable. Please try again later.');
 }
 
 /**
@@ -335,173 +417,38 @@ async function getWalletData() {
 }
 
 /**
- * Performs a fetch request with CORS handling and fallback to proxy if needed
- * @param {string} endpoint - The API endpoint (without the base URL)
- * @param {Object} options - Fetch options (method, headers, body)
- * @returns {Promise} - Promise resolving to the API response
+ * Checks if the server is available
+ * @returns {Promise<boolean>} - Promise resolving to true if server is available
  */
-async function fetchWithCORS(endpoint, options = {}) {
-    // Special handler for wallet endpoints to bypass CORS issues
-    if (endpoint === '/api/wallet' || endpoint === '/api/transactions') {
-        const mockData = await getWalletData();
-        return endpoint === '/api/wallet' ? mockData.wallet : mockData.transactions;
+async function isServerAvailable() {
+    // Use cached result if available and not expired
+    const now = Date.now();
+    if (_isServerAvailable !== null && (now - serverCheckTimestamp < SERVER_CHECK_DURATION)) {
+        return _isServerAvailable;
     }
     
-    // Ensure we have default headers
-    const headers = {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        ...(options.headers || {})
-    };
-
-    // Construct the full URL
-    const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
-    
-    // Try direct fetch with retries for rate limiting
-    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-        try {
-            // First attempt - direct fetch with CORS but WITHOUT credentials
-            // This avoids the wildcard origin issue
-            const response = await fetch(url, {
-                ...options,
-                headers,
-                mode: 'cors'
-            });
-            
-            // Handle rate limiting (429 Too Many Requests)
-            if (response.status === 429) {
-                const retryAfter = response.headers.get('Retry-After') || INITIAL_RETRY_DELAY * Math.pow(2, attempt);
-                console.warn(`Rate limited. Retrying after ${retryAfter}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
-                await sleep(retryAfter);
-                continue; // Retry the request
-            }
-            
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ 
-                    message: `Server error: ${response.status}` 
-                }));
-                throw new Error(errorData.message || `Server error: ${response.status}`);
-            }
-            
-            // Parse JSON response
-            try {
-                return await response.json();
-            } catch (jsonError) {
-                // If the response isn't JSON, return it as text
-                const textResponse = await response.text();
-                return { success: true, message: textResponse };
-            }
-        } catch (error) {
-            if (attempt === MAX_RETRIES - 1) {
-                console.warn('Direct API call failed after retries, trying proxy:', error);
-                break; // Move on to proxy attempts
-            }
-            
-            // If it's not the last attempt, wait and retry
-            if (error.message.includes('rate limit') || error.message.includes('429')) {
-                const delay = INITIAL_RETRY_DELAY * Math.pow(2, attempt);
-                console.warn(`Rate limit error, retrying after ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
-                await sleep(delay);
-            } else {
-                // For non-rate limit errors, break and try proxies
-                console.warn('Direct API call failed:', error);
-                break;
-            }
-        }
+    try {
+        // Ping the server with a simple health check
+        const response = await fetch(`${API_BASE_URL}/health`, { 
+            method: 'GET',
+            mode: 'cors',
+            cache: 'no-store',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            timeout: 5000 // 5 second timeout
+        });
+        
+        _isServerAvailable = response.ok;
+        serverCheckTimestamp = now;
+        return _isServerAvailable;
+    } catch (error) {
+        console.warn('Server availability check failed:', error);
+        _isServerAvailable = false;
+        serverCheckTimestamp = now;
+        return false;
     }
-    
-    // If we get here, all direct attempts failed - try proxies
-    let lastError = null;
-    
-    // Remove auth headers for proxy requests
-    const proxyHeaders = { ...headers };
-    delete proxyHeaders['Authorization']; // Auth headers usually cause CORS preflight failures with proxies
-    
-    // Try each proxy in order until one works
-    for (const proxyBaseUrl of CORS_PROXIES) {
-        try {
-            const proxyUrl = `${proxyBaseUrl}${encodeURIComponent(url)}`;
-            console.log('Attempting proxy fetch:', proxyUrl);
-            
-            // Use a different approach for CORS-Anywhere
-            const isCorsBypass = proxyBaseUrl.includes('cors-anywhere');
-            const finalHeaders = isCorsBypass ? {
-                ...proxyHeaders,
-                'X-Requested-With': 'XMLHttpRequest'
-            } : proxyHeaders;
-            
-            const proxyResponse = await fetch(proxyUrl, {
-                method: options.method || 'GET',
-                headers: finalHeaders,
-                body: options.body
-            });
-            
-            if (!proxyResponse.ok) {
-                const proxyErrorData = await proxyResponse.json().catch(() => ({
-                    message: `Proxy server error: ${proxyResponse.status}`
-                }));
-                console.warn(`Proxy ${proxyBaseUrl} failed:`, proxyErrorData.message);
-                lastError = new Error(proxyErrorData.message);
-                continue; // Try next proxy
-            }
-            
-            // Parse JSON response
-            try {
-                return await proxyResponse.json();
-            } catch (jsonError) {
-                // If the response isn't JSON, return it as text
-                const textResponse = await proxyResponse.text();
-                try {
-                    // Try to parse as JSON in case it's actually JSON
-                    return JSON.parse(textResponse);
-                } catch (parseError) {
-                    return { success: true, message: textResponse };
-                }
-            }
-        } catch (proxyError) {
-            console.warn(`Proxy ${proxyBaseUrl} failed:`, proxyError);
-            lastError = proxyError;
-            // Continue to next proxy
-        }
-    }
-    
-    // If we've tried all sources and we're calling the crypto price endpoint, return a mock response
-    if (endpoint.includes('crypto-price')) {
-        console.warn('All API connection methods failed for crypto price, returning mock data');
-        const coin = endpoint.split('=').pop(); // Extract coin symbol
-        return {
-            success: true,
-            price: mockCryptoPrice(coin),
-            symbol: coin,
-            timestamp: new Date().toISOString()
-        };
-    }
-    
-    // If all sources fail, provide a more helpful error
-    throw new Error(lastError?.message || 
-        'All API connection methods failed. The server may be temporarily unavailable. Please try again later.');
-}
-
-/**
- * Generates a mock price for when the API is unavailable
- * @param {string} symbol - Crypto symbol
- * @returns {number} - Mock price
- */
-function mockCryptoPrice(symbol) {
-    const basePrice = {
-        'BTC': 50000,
-        'ETH': 3000,
-        'DOGE': 0.25,
-        'XRP': 1.2,
-        'ADA': 2.5,
-        'SOL': 150,
-        'DOT': 30,
-        'LTC': 180
-    }[symbol] || 100;
-    
-    // Add some randomness (±5%)
-    const variance = basePrice * 0.05;
-    return basePrice + (Math.random() * variance * 2 - variance);
 }
 
 /**
@@ -581,7 +528,7 @@ async function registerUser(formData) {
     }
     
     // Check if we have a file to upload
-    const idProofFile = formData.get('idProof');
+    const idProofFile = formData.get('idProof') || formData.get('idProofFile');
     if (idProofFile && idProofFile instanceof File) {
         // Convert file to base64 to send through JSON
         formDataObj.idProofFilename = idProofFile.name;
@@ -649,6 +596,59 @@ async function checkExistingUser(email, contactNumber, idProofNumber) {
         throw error;
     }
 }
+
+// Function to reset the inactivity timer
+function resetInactivityTimer() {
+    clearTimeout(inactivityTimer);
+    inactivityTimer = setTimeout(logoutDueToInactivity, INACTIVITY_TIMEOUT);
+}
+
+// Function to handle logout due to inactivity
+function logoutDueToInactivity() {
+    // Clear authentication data
+    localStorage.removeItem('token');
+    localStorage.removeItem('username');
+    localStorage.removeItem('isAdmin');
+    
+    // Show alert
+    alert('You have been logged out due to inactivity.');
+    
+    // Redirect to login page
+    window.location.href = '/login.html';
+}
+
+// Set up event listeners to reset the timer on user activity
+function setupInactivityMonitoring() {
+    // Reset timer on various user interactions
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    
+    events.forEach(event => {
+        document.addEventListener(event, resetInactivityTimer, true);
+    });
+    
+    // Initial setup of the timer
+    resetInactivityTimer();
+}
+
+// Initialize inactivity monitoring when the page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Only set up monitoring if user is logged in
+    if (localStorage.getItem('token')) {
+        setupInactivityMonitoring();
+    }
+});
+
+// Create and export the CorsHelper object
+const CorsHelper = {
+    getApiBaseUrl: () => API_BASE_URL,
+    fetchWithCORS,
+    loginUser,
+    registerUser,
+    getWalletData,
+    mockCryptoPrice,
+    isServerAvailable,
+    checkExistingUser
+};
 
 // Export the helper functions for use in other scripts
 window.CorsHelper = CorsHelper; 
