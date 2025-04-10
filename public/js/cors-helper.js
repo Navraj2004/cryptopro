@@ -271,10 +271,22 @@ async function getWalletData() {
         for (const purchase of purchases) {
             const { coin, quantity, purchasePrice } = purchase;
             
+            // Define correct symbols for each coin
+            const coinSymbols = {
+                'Bitcoin': 'BTC',
+                'Ethereum': 'ETH',
+                'Dogecoin': 'DOGE',
+                'Ripple': 'XRP',
+                'Cardano': 'ADA',
+                'Solana': 'SOL',
+                'Polkadot': 'DOT',
+                'Litecoin': 'LTC'
+            };
+            
             if (!coinHoldings[coin]) {
                 coinHoldings[coin] = {
                     coin,
-                    symbol: coin.substring(0, 3).toUpperCase(),
+                    symbol: coinSymbols[coin] || coin.substring(0, 3).toUpperCase(),
                     icon: coinIcons[coin] || 'fas fa-coins',
                     quantity: 0,
                     totalInvested: 0,
