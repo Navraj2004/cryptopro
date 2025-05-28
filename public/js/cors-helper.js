@@ -307,15 +307,13 @@ async function getWalletData() {
             try {
                 // Fetch current price or use mock price
                 let currentPrice = 0;
-                let previousPrice = 0;
                 let priceData = null;
                 
                 try {
                     const priceResponse = await fetch(`${API_BASE_URL}/crypto-price?coin=${coin.substring(0, 3)}`);
                     priceData = await priceResponse.json();
-                    if (priceData && priceData.success) {
+                    if (priceData && priceData.success && priceData.price) {
                         currentPrice = parseFloat(priceData.price);
-                        previousPrice = parseFloat(priceData.previousPrice || (currentPrice * 0.95)); // Fallback to 5% lower if no previous price
                     }
                 } catch (priceError) {
                     console.warn(`Error fetching price for ${coin}:`, priceError);
@@ -324,80 +322,65 @@ async function getWalletData() {
                 // If API fetch failed or returned invalid data, use mock price
                 if (!currentPrice || isNaN(currentPrice)) {
                     currentPrice = mockCryptoPrice(coinHoldings[coin].symbol);
-                    previousPrice = currentPrice * (0.95 + Math.random() * 0.1); // Random previous price between 95-105% of current
                 }
                 
                 const holding = coinHoldings[coin];
                 holding.currentPrice = currentPrice;
                 
-                // Ensure quantity is valid and not zero
-                const quantity = parseFloat(holding.quantity) || 0.0001;
+                // Ensure quantity is valid
+                const quantity = parseFloat(holding.quantity) || 0;
                 
                 // Calculate total value and profit/loss
                 const totalValue = quantity * currentPrice;
-                const totalInvested = parseFloat(holding.totalInvested) || (quantity * currentPrice * 0.95);
-                const avgBuyPrice = totalInvested / quantity;
+                const totalInvested = parseFloat(holding.totalInvested) || 0;
                 
-                // Calculate 24h change
-                const priceChange24h = ((currentPrice - previousPrice) / previousPrice) * 100;
-                
-                // Calculate ROI
-                const roi = ((currentPrice - avgBuyPrice) / avgBuyPrice) * 100;
-                
-                // Calculate profit/loss
-                const profitLoss = totalValue - totalInvested;
+                // Avoid division by zero
+                let percentChange = 0;
+                if (totalInvested > 0) {
+                    const profitLoss = totalValue - totalInvested;
+                    percentChange = (profitLoss / totalInvested) * 100;
+                }
                 
                 // Format for display
-                const formattedPercentChange = priceChange24h.toFixed(2);
-                const changePrefix = priceChange24h >= 0 ? '+' : '';
+                const formattedPercentChange = percentChange.toFixed(2);
+                const changePrefix = percentChange >= 0 ? '+' : '';
                 
                 // Determine appropriate color class based on profit/loss
-                const changeClass = priceChange24h >= 0 ? 'text-success' : 'text-danger';
-                const roiClass = roi >= 0 ? 'text-success' : 'text-danger';
+                const changeClass = percentChange >= 0 ? 'text-success' : 'text-danger';
                 
                 holdings.push({
                     coin: holding.coin,
                     symbol: holding.symbol,
                     icon: holding.icon,
                     quantity: quantity.toFixed(4),
-                    avgBuyPrice: avgBuyPrice.toFixed(2),
+                    purchasePrice: totalInvested > 0 ? (totalInvested / quantity).toFixed(2) : "0.00",
                     currentPrice: currentPrice.toFixed(2),
                     totalPrice: totalValue.toFixed(2),
-                    change24h: `${changePrefix}${formattedPercentChange}%`,
+                    change: `${changePrefix}${formattedPercentChange}%`,
                     changeClass: changeClass,
-                    roi: `${roi >= 0 ? '+' : ''}${roi.toFixed(2)}%`,
-                    roiClass: roiClass,
-                    profitLoss: profitLoss.toFixed(2),
-                    changeValue: priceChange24h
+                    changeValue: percentChange
                 });
             } catch (error) {
                 console.error(`Error processing holding for ${coin}:`, error);
                 // Add with mock data if processing fails
                 const holding = coinHoldings[coin];
                 const mockPrice = mockCryptoPrice(holding.symbol);
-                const mockPreviousPrice = mockPrice * (0.95 + Math.random() * 0.1);
                 
                 // Ensure quantity is valid
-                const quantity = parseFloat(holding.quantity) || 0.0001;
+                const quantity = parseFloat(holding.quantity) || 0;
                 const totalValue = quantity * mockPrice;
-                const avgBuyPrice = mockPrice * 0.95;
-                const priceChange24h = ((mockPrice - mockPreviousPrice) / mockPreviousPrice) * 100;
-                const roi = ((mockPrice - avgBuyPrice) / avgBuyPrice) * 100;
                 
                 holdings.push({
                     coin: holding.coin,
                     symbol: holding.symbol,
                     icon: holding.icon,
                     quantity: quantity.toFixed(4),
-                    avgBuyPrice: avgBuyPrice.toFixed(2),
+                    purchasePrice: "0.00",
                     currentPrice: mockPrice.toFixed(2),
                     totalPrice: totalValue.toFixed(2),
-                    change24h: `${priceChange24h >= 0 ? '+' : ''}${priceChange24h.toFixed(2)}%`,
-                    changeClass: priceChange24h >= 0 ? 'text-success' : 'text-danger',
-                    roi: `${roi >= 0 ? '+' : ''}${roi.toFixed(2)}%`,
-                    roiClass: roi >= 0 ? 'text-success' : 'text-danger',
-                    profitLoss: (totalValue - (quantity * avgBuyPrice)).toFixed(2),
-                    changeValue: priceChange24h
+                    change: "+0.00%",
+                    changeClass: 'text-muted',
+                    changeValue: 0.0
                 });
             }
         }
@@ -458,50 +441,22 @@ async function getWalletData() {
         // Sort transactions by timestamp (newest first)
         formattedTransactions.sort((a, b) => b.timestamp - a.timestamp);
         
-        // Calculate portfolio statistics
-        const totalBalance = holdings.reduce((acc, h) => acc + parseFloat(h.totalPrice), 0);
-        const totalInvested = holdings.reduce((acc, h) => acc + (parseFloat(h.quantity) * parseFloat(h.avgBuyPrice)), 0);
-        const totalProfitLoss = totalBalance - totalInvested;
-        const portfolioROI = (totalProfitLoss / totalInvested) * 100;
+        // Calculate total balance with proper error handling
+        let totalBalance = 0;
+        try {
+            totalBalance = holdings.reduce((acc, holding) => {
+                const value = parseFloat(holding.totalPrice) || 0;
+                return acc + value;
+            }, 0);
+        } catch (e) {
+            console.error("Error calculating total balance:", e);
+        }
         
-        // Calculate 24h portfolio change
-        const portfolio24hChange = holdings.reduce((acc, h) => {
-            const holdingValue = parseFloat(h.totalPrice);
-            const holdingChange = parseFloat(h.changeValue);
-            return acc + (holdingValue * (holdingChange / 100));
-        }, 0) / (totalBalance || 1) * 100;
-        
-        // Ensure portfolio24hChange is a valid number
-        const portfolio24hChangeValue = isNaN(portfolio24hChange) ? 0 : portfolio24hChange;
-        
-        // Calculate trading statistics
-        const totalTransactions = formattedTransactions.length;
-        const successfulTrades = formattedTransactions.filter(tx => {
-            const isBuy = tx.type === 'Buy';
-            const price = parseFloat(tx.price.replace('$', ''));
-            const currentPrice = holdings.find(h => h.coin === tx.coin)?.currentPrice;
-            return isBuy ? parseFloat(currentPrice) > price : parseFloat(currentPrice) < price;
-        }).length;
-        
-        const avgTradeSize = totalTransactions > 0 
-            ? formattedTransactions.reduce((acc, tx) => acc + parseFloat(tx.price.replace('$', '')), 0) / totalTransactions
-            : 0;
-        
-        const successRate = totalTransactions > 0 ? (successfulTrades / totalTransactions) * 100 : 0;
-        
-        // Update the formatted wallet data with portfolio statistics
+        // Create the formatted wallet data
         const formattedWalletData = {
             wallet: {
                 holdings,
-                totalBalance,
-                totalInvested,
-                totalProfitLoss,
-                portfolioROI,
-                portfolio24hChange: portfolio24hChangeValue,
-                totalAssets: holdings.length,
-                totalTransactions,
-                avgTradeSize,
-                successRate
+                totalBalance: totalBalance
             },
             transactions: {
                 transactions: formattedTransactions
