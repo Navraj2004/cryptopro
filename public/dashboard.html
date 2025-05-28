@@ -1359,20 +1359,20 @@
                                     </div>
                                     <div class="d-flex justify-content-between mb-2">
                                         <span class="text-muted">24h Change:</span>
-                                        <span class="fw-bold ${portfolio24hChange >= 0 ? 'text-success' : 'text-danger'}">
-                                            ${portfolio24hChange >= 0 ? '+' : ''}${portfolio24hChange.toFixed(2)}%
+                                        <span class="fw-bold ${walletData.wallet.portfolio24hChange >= 0 ? 'text-success' : 'text-danger'}">
+                                            ${walletData.wallet.portfolio24hChange >= 0 ? '+' : ''}${parseFloat(walletData.wallet.portfolio24hChange).toFixed(2)}%
                                         </span>
                                     </div>
                                     <div class="d-flex justify-content-between mb-2">
                                         <span class="text-muted">Total Profit/Loss:</span>
-                                        <span class="fw-bold ${totalProfitLoss >= 0 ? 'text-success' : 'text-danger'}">
-                                            $${totalProfitLoss.toFixed(2)}
+                                        <span class="fw-bold ${walletData.wallet.totalProfitLoss >= 0 ? 'text-success' : 'text-danger'}">
+                                            $${walletData.wallet.totalProfitLoss.toFixed(2)}
                                         </span>
                                     </div>
                                     <div class="d-flex justify-content-between">
                                         <span class="text-muted">ROI:</span>
-                                        <span class="fw-bold ${portfolioROI >= 0 ? 'text-success' : 'text-danger'}">
-                                            ${portfolioROI >= 0 ? '+' : ''}${portfolioROI.toFixed(2)}%
+                                        <span class="fw-bold ${walletData.wallet.portfolioROI >= 0 ? 'text-success' : 'text-danger'}">
+                                            ${walletData.wallet.portfolioROI >= 0 ? '+' : ''}${walletData.wallet.portfolioROI.toFixed(2)}%
                                         </span>
                                     </div>
                                 </div>
@@ -1392,11 +1392,11 @@
                                     </div>
                                     <div class="d-flex justify-content-between mb-2">
                                         <span class="text-muted">Avg. Trade Size:</span>
-                                        <span class="fw-bold text-light">$${avgTradeSize.toFixed(2)}</span>
+                                        <span class="fw-bold text-light">$${walletData.wallet.avgTradeSize.toFixed(2)}</span>
                                     </div>
                                     <div class="d-flex justify-content-between">
                                         <span class="text-muted">Success Rate:</span>
-                                        <span class="fw-bold text-light">${successRate.toFixed(1)}%</span>
+                                        <span class="fw-bold text-light">${walletData.wallet.successRate.toFixed(1)}%</span>
                                     </div>
                                 </div>
                             </div>

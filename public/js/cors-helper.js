@@ -469,7 +469,10 @@ async function getWalletData() {
             const holdingValue = parseFloat(h.totalPrice);
             const holdingChange = parseFloat(h.changeValue);
             return acc + (holdingValue * (holdingChange / 100));
-        }, 0) / totalBalance * 100;
+        }, 0) / (totalBalance || 1) * 100;
+        
+        // Ensure portfolio24hChange is a valid number
+        const portfolio24hChangeValue = isNaN(portfolio24hChange) ? 0 : portfolio24hChange;
         
         // Calculate trading statistics
         const totalTransactions = formattedTransactions.length;
@@ -494,7 +497,7 @@ async function getWalletData() {
                 totalInvested,
                 totalProfitLoss,
                 portfolioROI,
-                portfolio24hChange,
+                portfolio24hChange: portfolio24hChangeValue,
                 totalAssets: holdings.length,
                 totalTransactions,
                 avgTradeSize,
