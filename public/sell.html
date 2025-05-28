@@ -622,9 +622,9 @@ async function fetchUserDetails() {
         let totalInvested = 0;
         
         purchases.forEach(purchase => {
-            if (purchase.coin === cryptoName && purchase.type === 'Buy') {
-                totalQuantity += parseFloat(purchase.quantity) || 0;
-                totalInvested += parseFloat(purchase.totalPrice) || 0;
+            if (purchase.coin === cryptoName) {
+                totalQuantity += purchase.quantity;
+                totalInvested += purchase.totalPrice;
             }
         });
         
@@ -696,17 +696,21 @@ async function fetchUserDetails() {
                 
                 purchases.forEach(purchase => {
                     if (purchase.coin === cryptoName && purchase.type === 'Buy') {
-                        totalQuantity += parseFloat(purchase.quantity) || 0;
-                        totalInvested += parseFloat(purchase.totalPrice) || 0;
+                        totalQuantity += purchase.quantity;
+                        totalInvested += purchase.totalPrice;
+                    } else if (purchase.coin === cryptoName && purchase.type === 'Sell') {
+                        totalQuantity -= purchase.quantity;
+                        // For sells, we don't adjust totalInvested as that would skew the average price
                     }
                 });
                 
-                // Calculate average purchase price
-                const avgPurchasePrice = totalQuantity > 0 ? totalInvested / totalQuantity : 0;
-                document.getElementById('portfolioAvgPrice').textContent = `$${avgPurchasePrice.toFixed(2)}`;
-                
-                // Update portfolio information
-                updatePortfolioInfo();
+                // Calculate and update average price
+                if (totalQuantity > 0 && totalInvested > 0) {
+                    const avgPrice = totalInvested / totalQuantity;
+                    document.getElementById('portfolioAvgPrice').textContent = `$${avgPrice.toFixed(2)}`;
+                } else {
+                    document.getElementById('portfolioAvgPrice').textContent = 'N/A';
+                }
             } catch (err) {
                 console.error('Error fetching wallet details for avg price:', err);
                 document.getElementById('portfolioAvgPrice').textContent = 'N/A';

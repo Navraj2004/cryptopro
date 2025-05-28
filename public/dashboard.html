@@ -802,7 +802,54 @@
                 </div>
             </div>
             <div class="wallet-balance-summary mb-4">
-                <!-- Content will be dynamically generated -->
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="card bg-dark border-0 h-100">
+                            <div class="card-body">
+                                <h5 class="card-title text-light mb-3">Portfolio Overview</h5>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Total Balance:</span>
+                                    <span class="fw-bold text-light" id="walletTotalBalance">$0.00</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">24h Change:</span>
+                                    <span class="fw-bold" id="portfolio24hChange">+0.00%</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Total Profit/Loss:</span>
+                                    <span class="fw-bold" id="totalProfitLoss">$0.00</span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-muted">ROI:</span>
+                                    <span class="fw-bold" id="portfolioROI">0.00%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card bg-dark border-0 h-100">
+                            <div class="card-body">
+                                <h5 class="card-title text-light mb-3">Trading Statistics</h5>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Total Assets:</span>
+                                    <span class="fw-bold text-light" id="totalAssets">0</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Total Transactions:</span>
+                                    <span class="fw-bold text-light" id="totalTransactions">0</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-muted">Avg. Trade Size:</span>
+                                    <span class="fw-bold text-light" id="avgTradeSize">$0.00</span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-muted">Success Rate:</span>
+                                    <span class="fw-bold text-light" id="successRate">0%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="wallet-tabs mb-3">
                 <ul class="nav nav-pills nav-fill mb-3" id="walletTabs" role="tablist">
@@ -825,8 +872,11 @@
                             <tr>
                                 <th>Asset</th>
                                 <th>Quantity</th>
+                                <th>Avg. Buy</th>
+                                <th>Current Price</th>
                                 <th>Value</th>
-                                <th>Change</th>
+                                <th>24h Change</th>
+                                <th>ROI</th>
                             </tr>
                         </thead>
                         <tbody id="walletTableBody" class="dark-table-body">
@@ -1187,13 +1237,16 @@
                                 </div>
                                 <div>
                                     <div class="fw-bold">${item.coin}</div>
-                                    <small class="text-muted">${item.symbol}</small>
+                                    <small class="text-light">${item.symbol}</small>
                                 </div>
                             </div>
                         </td>
-                        <td>${item.quantity} ${item.symbol}</td>
+                        <td>${parseFloat(item.quantity).toFixed(4)}</td>
+                        <td>$${item.avgBuyPrice}</td>
+                        <td>$${item.currentPrice}</td>
                         <td>$${parseFloat(item.totalPrice).toFixed(2)}</td>
-                        <td class="${changeColorClass}">${changeDisplay}</td>
+                        <td class="${item.changeClass}">${item.change24h}</td>
+                        <td class="${item.roiClass}">${item.roi}</td>
                     `;
                     
                     walletTableBody.appendChild(row);
@@ -1295,18 +1348,59 @@
             // Create wallet summary content
             if (totalBalance > 0 || userTransactions.length > 0) {
                 walletSummary.innerHTML = `
-                    <h4 class="mb-3">Wallet Summary</h4>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>Total Balance:</span>
-                        <span class="fw-bold" id="walletTotalBalance">$${totalBalance.toFixed(2)}</span>
-                    </div>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>Total Assets:</span>
-                        <span>${holdings.length}</span>
-                    </div>
-                    <div class="d-flex justify-content-between">
-                        <span>Total Transactions:</span>
-                        <span>${userTransactions.length}</span>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="card bg-dark border-0 h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title text-light mb-3">Portfolio Overview</h5>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted">Total Balance:</span>
+                                        <span class="fw-bold text-light">$${totalBalance.toFixed(2)}</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted">24h Change:</span>
+                                        <span class="fw-bold ${portfolio24hChange >= 0 ? 'text-success' : 'text-danger'}">
+                                            ${portfolio24hChange >= 0 ? '+' : ''}${portfolio24hChange.toFixed(2)}%
+                                        </span>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted">Total Profit/Loss:</span>
+                                        <span class="fw-bold ${totalProfitLoss >= 0 ? 'text-success' : 'text-danger'}">
+                                            $${totalProfitLoss.toFixed(2)}
+                                        </span>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <span class="text-muted">ROI:</span>
+                                        <span class="fw-bold ${portfolioROI >= 0 ? 'text-success' : 'text-danger'}">
+                                            ${portfolioROI >= 0 ? '+' : ''}${portfolioROI.toFixed(2)}%
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="card bg-dark border-0 h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title text-light mb-3">Trading Statistics</h5>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted">Total Assets:</span>
+                                        <span class="fw-bold text-light">${holdings.length}</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted">Total Transactions:</span>
+                                        <span class="fw-bold text-light">${userTransactions.length}</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-muted">Avg. Trade Size:</span>
+                                        <span class="fw-bold text-light">$${avgTradeSize.toFixed(2)}</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <span class="text-muted">Success Rate:</span>
+                                        <span class="fw-bold text-light">${successRate.toFixed(1)}%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 `;
             } else {
