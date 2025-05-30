@@ -16,11 +16,14 @@ document.addEventListener('DOMContentLoaded', () => {
 function initChartAnimations() {
     // Configuration for chart animations
     window.chartAnimationConfig = {
-        duration: 800,
-        easing: 'easeOutQuart',
-        delay: 150,
+        duration: 500,
+        easing: 'easeOutCubic',
+        delay: 0,
         responsive: true,
         dynamicDisplay: true,
+        animation: {
+            duration: 0 // disable animation on resize
+        },
         onComplete: function() {
             if (this.tooltip) {
                 this.tooltip.contentEl.classList.add('animated', 'fadeIn');
@@ -75,7 +78,10 @@ function createPriceChart(elementId, data, options = {}) {
                 pointHoverRadius: 5,
                 pointHoverBackgroundColor: '#fff',
                 pointHoverBorderWidth: 2,
-                tension: 0.4,
+                tension: 0.3,
+                spanGaps: true,
+                stepped: false,
+                parsing: false, // Disable parsing for better performance
                 fill: true
             }]
         },
@@ -83,6 +89,8 @@ function createPriceChart(elementId, data, options = {}) {
             responsive: true,
             maintainAspectRatio: false,
             animation: window.chartAnimationConfig,
+            resizeDelay: 0,
+            devicePixelRatio: 1, // Force 1:1 pixel ratio for better performance
             interaction: {
                 intersect: false,
                 mode: 'index',
