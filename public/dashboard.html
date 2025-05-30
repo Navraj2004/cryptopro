@@ -1168,30 +1168,37 @@
     }
 
     async function fetchWallet() {
-        const token = localStorage.getItem('token');
-        if (!token) {
-            alert("Please log in to view your wallet.");
-            window.location.href = "login.html";
-            return;
-        }
-
         try {
-            // Show loading state
-            const walletTableBody = document.getElementById("holdings-table-body");
-            if (walletTableBody) {
-                walletTableBody.innerHTML = `
-                    <tr>
-                        <td colspan="4" class="text-center">
-                            <div class="d-flex justify-content-center align-items-center py-3">
-                                <div class="spinner-border text-primary me-3" role="status">
-                                    <span class="visually-hidden">Loading...</span>
-                                </div>
-                                <span>Loading wallet data...</span>
-                            </div>
-                        </td>
-                    </tr>
-                `;
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('Please log in to view your wallet.');
+                window.location.href = 'login.html';
+                return;
             }
+
+            // Ensure necessary DOM elements exist before proceeding
+            const assetsTab = document.getElementById('assets-tab');
+            const transactionsTab = document.getElementById('transactions-tab');
+            const walletTableBody = document.getElementById('walletTableBody');
+            
+            if (!assetsTab || !transactionsTab || !walletTableBody) {
+                console.error('Required DOM elements not found');
+                return;
+            }
+
+            // Show loading state
+            walletTableBody.innerHTML = `
+                <tr>
+                    <td colspan="4" class="text-center">
+                        <div class="d-flex justify-content-center align-items-center py-3">
+                            <div class="spinner-border text-primary me-3" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <span>Loading wallet data...</span>
+                        </div>
+                    </td>
+                </tr>
+            `;
             
             // Get wallet data from MongoDB through our updated helper function
             const walletData = await CorsHelper.getWalletData();
@@ -1202,82 +1209,83 @@
             const userTransactions = walletData.transactions.transactions;
             
             // Update the wallet table
-            if (walletTableBody) {
-                walletTableBody.innerHTML = "";
+            walletTableBody.innerHTML = "";
 
-                if (holdings.length === 0) {
-                    walletTableBody.innerHTML = `<tr><td colspan="4" class="text-center">No assets found in your wallet. Try buying some coins!</td></tr>`;
-                } else {
-                    // Sort holdings by value (highest first by default)
-                    holdings.sort((a, b) => parseFloat(b.totalPrice) - parseFloat(a.totalPrice));
+            if (holdings.length === 0) {
+                walletTableBody.innerHTML = `<tr><td colspan="4" class="text-center">No assets found in your wallet. Try buying some coins!</td></tr>`;
+            } else {
+                // Sort holdings by value (highest first by default)
+                holdings.sort((a, b) => parseFloat(b.totalPrice) - parseFloat(a.totalPrice));
+                
+                holdings.forEach((item) => {
+                    const row = document.createElement("tr");
+                    row.setAttribute('data-value', parseFloat(item.totalPrice));
+                    row.setAttribute('data-change', parseFloat(item.changeValue));
+                
+                    // Properly extract and parse the change values
+                    let totalChangeValue = parseFloat(item.changeValue) || 0;
+                    let dailyChangeValue = parseFloat(item.dailyChangeValue) || 0;
+                
+                    // Determine color classes based on change values
+                    const totalChangeColorClass = totalChangeValue >= 0 ? 'text-success' : 'text-danger';
+                    const dailyChangeColorClass = dailyChangeValue >= 0 ? 'text-success' : 'text-danger';
+                
+                    // Format the change values with + or - sign
+                    const totalChangeDisplay = item.change || (totalChangeValue >= 0 
+                        ? `+${totalChangeValue.toFixed(2)}%` 
+                        : `${totalChangeValue.toFixed(2)}%`);
                     
-                    holdings.forEach((item) => {
-                        const row = document.createElement("tr");
-                        row.setAttribute('data-value', parseFloat(item.totalPrice));
-                        row.setAttribute('data-change', parseFloat(item.changeValue));
-                    
-                        // Properly extract and parse the change values
-                        let totalChangeValue = parseFloat(item.changeValue) || 0;
-                        let dailyChangeValue = parseFloat(item.dailyChangeValue) || 0;
-                    
-                        // Determine color classes based on change values
-                        const totalChangeColorClass = totalChangeValue >= 0 ? 'text-success' : 'text-danger';
-                        const dailyChangeColorClass = dailyChangeValue >= 0 ? 'text-success' : 'text-danger';
-                    
-                        // Format the change values with + or - sign
-                        const totalChangeDisplay = item.change || (totalChangeValue >= 0 
-                            ? `+${totalChangeValue.toFixed(2)}%` 
-                            : `${totalChangeValue.toFixed(2)}%`);
-                        
-                        const dailyChangeDisplay = item.dailyChange || (dailyChangeValue >= 0 
-                            ? `+${dailyChangeValue.toFixed(2)}%` 
-                            : `${dailyChangeValue.toFixed(2)}%`);
-                    
-                        // Calculate profit/loss amount
-                        const profitLossAmount = item.profitLoss || 0;
-                        const profitLossDisplay = profitLossAmount >= 0 
-                            ? `+$${profitLossAmount.toFixed(2)}` 
-                            : `-$${Math.abs(profitLossAmount).toFixed(2)}`;
-                    
-                        row.innerHTML = `
-                            <td>
-                                <div class="d-flex align-items-center">
-                                    <div class="coin-icon me-2">
-                                        <i class="${item.icon}"></i>
-                                    </div>
-                                    <div>
-                                        <div class="fw-bold">${item.coin}</div>
-                                        <small class="text-muted">${item.symbol}</small>
-                                    </div>
+                    const dailyChangeDisplay = item.dailyChange || (dailyChangeValue >= 0 
+                        ? `+${dailyChangeValue.toFixed(2)}%` 
+                        : `${dailyChangeValue.toFixed(2)}%`);
+                
+                    // Calculate profit/loss amount
+                    const profitLossAmount = item.profitLoss || 0;
+                    const profitLossDisplay = profitLossAmount >= 0 
+                        ? `+$${profitLossAmount.toFixed(2)}` 
+                        : `-$${Math.abs(profitLossAmount).toFixed(2)}`;
+                
+                    row.innerHTML = `
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="coin-icon me-2">
+                                    <i class="${item.icon}"></i>
                                 </div>
-                            </td>
-                            <td>
-                                <div>${item.quantity}</div>
-                                <small class="text-muted">$${parseFloat(item.currentPrice).toFixed(2)}</small>
-                            </td>
-                            <td>
-                                <div class="fw-bold">$${parseFloat(item.totalPrice).toFixed(2)}</div>
-                            </td>
-                            <td class="${dailyChangeColorClass}">
-                                <div class="d-flex align-items-center">
-                                    <i class="fas fa-${dailyChangeValue >= 0 ? 'caret-up' : 'caret-down'} me-1"></i>
-                                    ${dailyChangeDisplay}
+                                <div>
+                                    <div class="fw-bold">${item.coin}</div>
+                                    <small class="text-muted">${item.symbol}</small>
                                 </div>
-                            </td>
-                            <td>
-                                <div class="${totalChangeColorClass} d-flex align-items-center">
-                                    <i class="fas fa-${totalChangeValue >= 0 ? 'caret-up' : 'caret-down'} me-1"></i>
-                                    ${totalChangeDisplay}
-                                </div>
-                                <small class="${totalChangeColorClass}">${profitLossDisplay}</small>
-                            </td>
-                        `;
-                    
-                        walletTableBody.appendChild(row);
+                            </div>
+                        </td>
+                        <td>
+                            <div>${item.quantity}</div>
+                            <small class="text-muted">$${parseFloat(item.currentPrice).toFixed(2)}</small>
+                        </td>
+                        <td>
+                            <div class="fw-bold">$${parseFloat(item.totalPrice).toFixed(2)}</div>
+                        </td>
+                        <td class="${dailyChangeColorClass}">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-${dailyChangeValue >= 0 ? 'caret-up' : 'caret-down'} me-1"></i>
+                                ${dailyChangeDisplay}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="${totalChangeColorClass} d-flex align-items-center">
+                                <i class="fas fa-${totalChangeValue >= 0 ? 'caret-up' : 'caret-down'} me-1"></i>
+                                ${totalChangeDisplay}
+                            </div>
+                            <small class="${totalChangeColorClass}">${profitLossDisplay}</small>
+                        </td>
+                    `;
+                
+                    walletTableBody.appendChild(row);
                 });
                 
-                    // Add event listener for sorting
-                    document.getElementById('holdingsSortSelect').addEventListener('change', function() {
+                // Add event listener for sorting
+                const holdingsSortSelect = document.getElementById('holdingsSortSelect');
+                if (holdingsSortSelect) {
+                    holdingsSortSelect.addEventListener('change', function() {
                         const sortValue = this.value;
                         const rows = Array.from(walletTableBody.querySelectorAll('tr'));
                     
@@ -1295,7 +1303,7 @@
                                 return parseFloat(a.getAttribute('data-change')) - parseFloat(b.getAttribute('data-change'));
                             }
                             return 0;
-                    });
+                        });
                     
                         // Remove all rows
                         while (walletTableBody.firstChild) {
@@ -1340,11 +1348,11 @@
                         return dateB.getTime() - dateA.getTime();
                     });
                 
-                        userTransactions.forEach(tx => {
+                    userTransactions.forEach(tx => {
                         const row = document.createElement('tr');
                     
                         const isBuy = tx.type === 'Buy';
-                        const date = new Date(tx.date || tx.createdAt).toLocaleDateString('en-US', {
+                        let dateStr = new Date(tx.timestamp).toLocaleString('en-US', {
                             year: 'numeric',
                             month: 'short',
                             day: 'numeric',
@@ -1536,29 +1544,52 @@ function redirectToLogin() {
             logout();
         });
 
-    // Handle Assets and Transactions tab switching
-    document.getElementById("assetsButton").addEventListener("click", () => {
-        document.getElementById("assets-tab").classList.add("show", "active");
-        document.getElementById("transactions-tab").classList.remove("show", "active");
-        fetchWallet(); // This will update the assets view
+    // Initialize Bootstrap tabs properly
+    document.addEventListener('DOMContentLoaded', function() {
+        const tabElements = document.querySelectorAll('[data-bs-toggle="tab"]');
+        tabElements.forEach(tab => {
+            tab.addEventListener('shown.bs.tab', function (event) {
+                if (event.target.id === 'assetsButton' || event.target.id === 'transactionsButton') {
+                    fetchWallet();
+                }
+            });
+        });
+
+        // Initialize the tabs using Bootstrap's Tab API
+        const tabs = document.querySelectorAll('.nav-link');
+        tabs.forEach(tab => {
+            new bootstrap.Tab(tab);
+        });
+
+        // Set initial active tab
+        const activeTab = new bootstrap.Tab(document.querySelector('#assetsButton'));
+        activeTab.show();
     });
 
-    document.getElementById("transactionsButton").addEventListener("click", () => {
-        document.getElementById("transactions-tab").classList.add("show", "active");
-        document.getElementById("assets-tab").classList.remove("show", "active");
-        fetchWallet(); // This will update the transactions view
-    });
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initial load of assets
+        fetchWallet();
+        
+        // Fetch user details
+        fetchUserDetails();
+        
+        // Initialize AOS
+        AOS.init({
+            duration: 800,
+            easing: 'ease-in-out',
+            once: true
+        });
 
-    // Initial load of assets
-    fetchWallet();
-    
-    fetchUserDetails();
-    
-    // Initialize AOS
-    AOS.init({
-        duration: 800,
-        easing: 'ease-in-out',
-        once: true
+        // Initialize tooltips and popovers
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+
+        const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+        popoverTriggerList.map(function (popoverTriggerEl) {
+            return new bootstrap.Popover(popoverTriggerEl);
+        });
     });
     
     // Add background-clip standard property for compatibility
