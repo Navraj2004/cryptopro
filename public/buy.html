@@ -12,8 +12,8 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <!-- Animate.css for additional animations -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- TradingView Widget -->
+  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
   <!-- Migration CSS -->
   <link href="css/migration.css" rel="stylesheet">
   <style>
@@ -159,53 +159,9 @@
       margin-bottom: 2rem;
     }
     
-    #priceChart {
-      background-color: rgba(15, 23, 42, 0.3);
-      border-radius: 12px;
-      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
-      padding: 20px;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-    }
-    
-    .chart-overlay {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      padding: 5px 10px;
-      background-color: rgba(15, 23, 42, 0.7);
-      border-radius: 5px;
-      font-weight: 500;
-      z-index: 10;
-      color: var(--light-color);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    
-    .chart-price-overlay {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      padding: 5px 10px;
-      background-color: rgba(15, 23, 42, 0.7);
-      border-radius: 5px;
-      font-weight: 700;
-      z-index: 10;
-      color: var(--light-color);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    
-    .period-btn {
-      font-weight: 500;
-      transition: all 0.3s ease;
-      background-color: rgba(30, 41, 59, 0.5);
-      color: var(--light-color);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    
-    .period-btn.active {
-      background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
-      color: white;
-      box-shadow: 0 2px 5px rgba(0, 123, 255, 0.3);
-      border: none;
+    .tradingview-widget-container {
+      width: 100%;
+      height: 500px;
     }
     
     /* Form styling */
@@ -338,25 +294,8 @@
         <!-- Graph Analysis Section -->
         <div class="section-card">
           <h2 class="section-title"><i class="fas fa-chart-area"></i>Price Chart</h2>
-          <!-- Period Selector Buttons -->
-          <div class="d-flex justify-content-center mb-4">
-            <div class="btn-group" role="group" aria-label="Period Selection">
-              <button type="button" class="btn period-btn active" data-period="86400000">24H</button>
-              <button type="button" class="btn period-btn" data-period="604800000">7D</button>
-              <button type="button" class="btn period-btn" data-period="2592000000">30D</button>
-              <button type="button" class="btn period-btn" data-period="31536000000">1Y</button>
-            </div>
-          </div>
-          <!-- Chart container with overlays -->
-          <div class="chart-container">
-            <div id="dateRangeOverlay" class="chart-overlay"></div>
-            <div id="currentPriceOverlay" class="chart-price-overlay"></div>
-            <canvas id="priceChart"></canvas>
-          </div>
-          <!-- Price change indicator -->
-          <div class="d-flex justify-content-between align-items-center mt-3">
-            <div id="priceChangeInfo" class="fw-bold"></div>
-            <div id="volumeInfo" class="text-muted"></div>
+          <div class="tradingview-widget-container">
+            <div id="tradingview_chart" style="height: 500px;"></div>
           </div>
         </div>
       </div>
@@ -501,7 +440,6 @@
     };
     
     let currentPrice = initialPrice;
-    let chart = null;
     let currentUser = null;
     // Default period: 24H (86400000 ms)
     let currentPeriodDuration = 86400000;
@@ -539,19 +477,6 @@
       return num.toFixed(2);
     };
     
-    // Register Chart.js plugins
-    Chart.register({
-      id: 'chartBackgroundPlugin',
-      beforeDraw: (chart) => {
-        const ctx = chart.canvas.getContext('2d');
-        ctx.save();
-        ctx.globalCompositeOperation = 'destination-over';
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.3)';
-        ctx.fillRect(0, 0, chart.width, chart.height);
-        ctx.restore();
-      }
-    });
-
     /* Fetch Live Price */
     async function fetchLivePrice() {
       const cryptoSymbol = coinSymbols[cryptoName];
@@ -698,25 +623,6 @@
       window.location.href = 'dashboard.html';
     }
 
-    /* Fetch Historical Price Data from LiveCoinWatch */
-    async function fetchHistoricalPrice(coinSymbol, start, end) {
-      const response = await fetch("https://api.livecoinwatch.com/coins/single/history", {
-        method: "POST",
-        headers: new Headers({
-          "content-type": "application/json",
-          "x-api-key": "16a18afe-fc97-4735-b2a4-78905135d8d6"
-        }),
-        body: JSON.stringify({
-          currency: "USD",
-          code: coinSymbol,
-          start: start,
-          end: end,
-          meta: true
-        })
-      });
-      return await response.json();
-    }
-
     /* Performance Stats (UNCHANGED) */
     async function updatePerformanceStats() {
       if (!currentPrice) return;
@@ -777,285 +683,41 @@
       }
     }
 
-    /* Enhanced Graph Analysis */
-    async function updateGraph() {
-      if (!currentPrice) return;
-      const coinSymbol = coinSymbols[cryptoName];
-      const now = Date.now();
-      const periodDuration = currentPeriodDuration;
-      const start = now - periodDuration;
-      
-      let dateRangeText = "";
-      let labels = [];
-      let prices = [];
-      let volumes = [];
-      
-      try {
-        // Show loading state
-        document.getElementById('priceChart').style.opacity = '0.5';
-        
-        const data = await fetchHistoricalPrice(coinSymbol, start, now);
-        if (!data.history || data.history.length === 0) {
-          console.error("No historical data available");
-          document.getElementById('priceChart').style.opacity = '1';
-          return;
-        }
-        
-        // Sort history in ascending order by time
-        const history = data.history.sort((a, b) => {
-          let ta = a.time, tb = b.time;
-          if (ta < 1000000000000) ta *= 1000;
-          if (tb < 1000000000000) tb *= 1000;
-          return ta - tb;
-        });
-        
-        // Calculate time formatting based on period
-        let timeFormat;
-        let tooltipFormat;
-        
-        // Set labels, prices, and date range text based on selected period
-        if (periodDuration === 86400000) { // 24H
-          timeFormat = { hour: '2-digit', minute: '2-digit' };
-          tooltipFormat = { hour: '2-digit', minute: '2-digit', second: '2-digit' };
-          dateRangeText = `24H (${new Date(start).toLocaleDateString()})`;
-        } else if (periodDuration === 604800000) { // 7D
-          timeFormat = { month: 'short', day: 'numeric' };
-          tooltipFormat = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-          dateRangeText = `7 Days (${new Date(start).toLocaleDateString()} - ${new Date(now).toLocaleDateString()})`;
-        } else if (periodDuration === 2592000000) { // 30D
-          timeFormat = { month: 'short', day: 'numeric' };
-          tooltipFormat = { month: 'short', day: 'numeric' };
-          dateRangeText = `30 Days (${new Date(start).toLocaleDateString()} - ${new Date(now).toLocaleDateString()})`;
-        } else { // 1Y
-          timeFormat = { month: 'short', year: 'numeric' };
-          tooltipFormat = { month: 'short', day: 'numeric', year: 'numeric' };
-          dateRangeText = `1 Year (${new Date(start).toLocaleDateString()} - ${new Date(now).toLocaleDateString()})`;
-        }
-        
-        // Process data points
-        labels = history.map(item => {
-          let ts = item.time;
-          if (ts < 1000000000000) ts *= 1000;
-          return new Date(ts).toLocaleDateString(undefined, timeFormat);
-        });
-        
-        // Use current price for the latest data point to ensure consistency
-        const historicalPrices = history.map(item => item.rate);
-        prices = [...historicalPrices.slice(0, -1), currentPrice];
-        
-        // Generate simulated volume data if not available
-        volumes = history.map(item => {
-          // If volume data is available in the API response, use that instead
-          if (item.volume) return item.volume;
-          // Otherwise generate a simulated volume based on price
-          return item.rate * (Math.random() * 5000 + 1000);
-        });
-        
-        // Calculate price change percentage
-        const firstPrice = prices[0];
-        const lastPrice = currentPrice; // Use currentPrice as lastPrice
-        const priceChangePercent = ((lastPrice - firstPrice) / firstPrice) * 100;
-        
-        // Calculate average volume
-        const avgVolume = volumes.reduce((sum, vol) => sum + vol, 0) / volumes.length;
-        
-        // Update overlays with information
-        updateChartOverlays(
-          dateRangeText,
-          `$${currentPrice.toFixed(2)}`, // Always use currentPrice here
-          priceChangePercent,
-          avgVolume
-        );
-        
-        // Create gradient fill based on trend
-        const ctx = document.getElementById('priceChart').getContext('2d');
-        let gradient = ctx.createLinearGradient(0, 0, 0, 400);
-        
-        // Enhanced colors for better visual appeal
-        const upColor = '#10b981'; // Changed to match theme variables
-        const downColor = '#ef4444'; // Changed to match theme variables
-        const lineColor = lastPrice >= firstPrice ? upColor : downColor;
-        
-        if (lastPrice >= firstPrice) {
-          gradient.addColorStop(0, "rgba(16, 185, 129, 0.2)");
-          gradient.addColorStop(1, "rgba(16, 185, 129, 0.05)");
-        } else {
-          gradient.addColorStop(0, "rgba(239, 68, 68, 0.2)");
-          gradient.addColorStop(1, "rgba(239, 68, 68, 0.05)");
-        }
-        
-        // Restore opacity
-        document.getElementById('priceChart').style.opacity = '1';
-        
-        // Destroy previous chart instance if exists
-        if (chart) chart.destroy();
-        
-        // Create new enhanced chart
-        chart = new Chart(ctx, {
-          type: 'line',
-          data: {
-            labels: labels,
-            datasets: [
-              // Price dataset
-              {
-                label: `${cryptoName} Price`,
-                data: prices,
-                borderColor: lineColor,
-                borderWidth: 2,
-                backgroundColor: gradient,
-                fill: true,
-                tension: 0.2,
-                pointRadius: (ctx) => ctx.dataIndex % Math.ceil(prices.length / 10) === 0 ? 3 : 0,
-                pointHoverRadius: 6,
-                pointBackgroundColor: lineColor,
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2,
-                yAxisID: 'y',
-              },
-              // Volume dataset (shown as bars at bottom)
-              {
-                label: 'Volume',
-                data: volumes,
-                backgroundColor: (ctx) => {
-                  const index = ctx.dataIndex;
-                  if (index > 0 && prices[index] >= prices[index - 1]) {
-                    return 'rgba(16, 185, 129, 0.3)';
-                  }
-                  return 'rgba(239, 68, 68, 0.3)';
-                },
-                borderColor: 'transparent',
-                type: 'bar',
-                barPercentage: 0.8,
-                yAxisID: 'y1',
-              }
-            ]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: {
-              mode: 'index',
-              intersect: false,
-            },
-            plugins: {
-              tooltip: {
-                enabled: true,
-                mode: 'index',
-                intersect: false,
-                padding: 10,
-                callbacks: {
-                  label: (context) => {
-                    if (context.dataset.label === 'Volume') {
-                      return `Volume: $${formatLargeNumber(context.parsed.y)}`;
-                    }
-                    
-                    let ts = history[context.dataIndex].time;
-                    if (ts < 1000000000000) ts *= 1000;
-                    return `Price: $${context.parsed.y.toFixed(2)}`;
-                  },
-                  title: (tooltipItems) => {
-                    const index = tooltipItems[0].dataIndex;
-                    let ts = history[index].time;
-                    if (ts < 1000000000000) ts *= 1000;
-                    return new Date(ts).toLocaleString(undefined, tooltipFormat);
-                  }
-                },
-                backgroundColor: "rgba(30, 41, 59, 0.95)",
-                titleColor: "#f8fafc",
-                bodyColor: "#f8fafc",
-                borderColor: "rgba(255, 255, 255, 0.1)",
-                borderWidth: 1,
-                titleFont: {
-                  weight: 'bold'
-                },
-                bodyFont: {
-                  size: 13
-                },
-                boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
-                cornerRadius: 4
-              },
-              legend: {
-                display: false
-              }
-            },
-            animations: {
-              tension: {
-                duration: 1000,
-                easing: 'linear',
-                from: 0.4,
-                to: 0.2,
-                loop: false
-              }
-            },
-            scales: {
-              x: {
-                grid: {
-                  display: true,
-                  color: 'rgba(255, 255, 255, 0.05)',
-                  drawBorder: false,
-                  tickLength: 10
-                },
-                ticks: {
-                  maxRotation: 0,
-                  autoSkip: true,
-                  maxTicksLimit: 8,
-                  padding: 10,
-                  font: {
-                    size: 11
-                  },
-                  color: 'rgba(255, 255, 255, 0.7)'
-                }
-              },
-              y: {
-                position: 'right',
-                grid: {
-                  display: true,
-                  color: 'rgba(255, 255, 255, 0.05)',
-                  drawBorder: false
-                },
-                ticks: {
-                  padding: 10,
-                  callback: (value) => `$${value.toFixed(2)}`,
-                  font: {
-                    size: 11
-                  },
-                  color: 'rgba(255, 255, 255, 0.7)'
-                }
-              },
-              y1: {
-                display: false,
-                position: 'left',
-                grid: {
-                  display: false
-                },
-                ticks: {
-                  display: false
-                }
-              }
-            }
-          }
-        });
-      } catch (error) {
-        console.error("Error updating graph:", error);
-        document.getElementById('priceChart').style.opacity = '1';
-      }
-    }
-
-    // Event listeners for period selection buttons.
-    document.querySelectorAll('.period-btn').forEach(btn => {
-      btn.addEventListener('click', function() {
-        // Remove active class from all buttons.
-        document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
-        // Add active class to clicked button.
-        this.classList.add('active');
-        currentPeriodDuration = parseInt(this.getAttribute('data-period'));
-        updateGraph();
+    // Initialize TradingView widget with area chart
+    function initTradingViewWidget() {
+      new TradingView.widget({
+        "width": "100%",
+        "height": 500,
+        "symbol": "BINANCE:" + cryptoName + "USDT",
+        "interval": "D",
+        "timezone": "Etc/UTC",
+        "theme": "dark",
+        "style": "3", // Use 3 for area chart (1 for bars, 2 for candles)
+        "locale": "en",
+        "toolbar_bg": "#0f172a",
+        "enable_publishing": false,
+        "hide_side_toolbar": false,
+        "allow_symbol_change": true,
+        "container_id": "tradingview_chart",
+        "studies": [
+          "MASimple@tv-basicstudies",
+          "RSI@tv-basicstudies"
+        ],
+        "show_popup_button": true,
+        "popup_width": "1000",
+        "popup_height": "650",
+        "backgroundColor": "#0f172a",
+        "gridColor": "rgba(255, 255, 255, 0.05)",
+        "hide_top_toolbar": false,
+        "save_image": true,
+        "watchlist": ["BINANCE:BTCUSDT", "BINANCE:ETHUSDT", "BINANCE:BNBUSDT", "BINANCE:DOGEUSDT"]
       });
-    });
+    }
 
     window.onload = () => {
       fetchLivePrice();
       fetchUserDetails();
+      initTradingViewWidget();
     };
   </script>
   <!-- Wallet Migration Utility -->
