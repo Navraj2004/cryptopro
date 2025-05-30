@@ -683,6 +683,25 @@
       }
     }
 
+    // Fetch Historical Price Data from LiveCoinWatch
+    async function fetchHistoricalPrice(coinSymbol, start, end) {
+      const response = await fetch("https://api.livecoinwatch.com/coins/single/history", {
+        method: "POST",
+        headers: new Headers({
+          "content-type": "application/json",
+          "x-api-key": "16a18afe-fc97-4735-b2a4-78905135d8d6"
+        }),
+        body: JSON.stringify({
+          currency: "USD",
+          code: coinSymbol,
+          start: start,
+          end: end,
+          meta: true
+        })
+      });
+      return await response.json();
+    }
+
     // Initialize TradingView widget with area chart
     function initTradingViewWidget() {
       new TradingView.widget({
@@ -693,6 +712,44 @@
         "timezone": "Etc/UTC",
         "theme": "dark",
         "style": "3", // Use 3 for area chart (1 for bars, 2 for candles)
+        "locale": "en",
+        "toolbar_bg": "#0f172a",
+        "enable_publishing": false,
+        "hide_side_toolbar": false,
+        "allow_symbol_change": true,
+        "container_id": "tradingview_chart",
+        "studies": [
+          "MASimple@tv-basicstudies",
+          "RSI@tv-basicstudies"
+        ],
+        "show_popup_button": true,
+        "popup_width": "1000",
+        "popup_height": "650",
+        "backgroundColor": "#0f172a",
+        "gridColor": "rgba(255, 255, 255, 0.05)",
+        "hide_top_toolbar": false,
+        "save_image": true,
+        "watchlist": ["BINANCE:BTCUSDT", "BINANCE:ETHUSDT", "BINANCE:BNBUSDT", "BINANCE:DOGEUSDT"]
+      });
+    }
+
+    // Update Graph Function
+    async function updateGraph() {
+      const symbol = coinSymbols[cryptoName];
+      if (!symbol) return;
+      
+      // Update TradingView widget with new symbol
+      const container = document.getElementById('tradingview_chart');
+      container.innerHTML = ''; // Clear previous chart
+      
+      new TradingView.widget({
+        "width": "100%",
+        "height": 500,
+        "symbol": "BINANCE:" + symbol + "USDT",
+        "interval": "D",
+        "timezone": "Etc/UTC",
+        "theme": "dark",
+        "style": "3", // Use 3 for area chart
         "locale": "en",
         "toolbar_bg": "#0f172a",
         "enable_publishing": false,
