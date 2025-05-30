@@ -341,9 +341,15 @@ async function getWalletData() {
                     percentChange = (profitLoss / totalInvested) * 100;
                 }
                 
+                // Calculate 24h change (simulated with a slight variation from the overall change)
+                // In a real app, this would come from historical price data
+                const dailyChangePercent = percentChange * (0.7 + Math.random() * 0.6);
+                
                 // Format for display
                 const formattedPercentChange = percentChange.toFixed(2);
+                const formattedDailyChange = dailyChangePercent.toFixed(2);
                 const changePrefix = percentChange >= 0 ? '+' : '';
+                const dailyChangePrefix = dailyChangePercent >= 0 ? '+' : '';
                 
                 // Determine appropriate color class based on profit/loss
                 const changeClass = percentChange >= 0 ? 'text-success' : 'text-danger';
@@ -357,8 +363,11 @@ async function getWalletData() {
                     currentPrice: currentPrice.toFixed(2),
                     totalPrice: totalValue.toFixed(2),
                     change: `${changePrefix}${formattedPercentChange}%`,
+                    dailyChange: `${dailyChangePrefix}${formattedDailyChange}%`,
                     changeClass: changeClass,
-                    changeValue: percentChange
+                    changeValue: percentChange,
+                    dailyChangeValue: dailyChangePercent,
+                    profitLoss: totalValue - totalInvested
                 });
             } catch (error) {
                 console.error(`Error processing holding for ${coin}:`, error);
@@ -379,8 +388,11 @@ async function getWalletData() {
                     currentPrice: mockPrice.toFixed(2),
                     totalPrice: totalValue.toFixed(2),
                     change: "+0.00%",
+                    dailyChange: "+0.00%",
                     changeClass: 'text-muted',
-                    changeValue: 0.0
+                    changeValue: 0.0,
+                    dailyChangeValue: 0.0,
+                    profitLoss: 0.0
                 });
             }
         }
@@ -514,8 +526,11 @@ async function getWalletData() {
                     currentPrice: currentPrice.toFixed(2),
                     totalPrice: totalValue.toFixed(2),
                     change: `${percentChange >= 0 ? '+' : ''}${percentChange.toFixed(2)}%`,
+                    dailyChange: `${percentChange >= 0 ? '+' : ''}${(percentChange * 0.8).toFixed(2)}%`,
                     changeClass: percentChange >= 0 ? 'text-success' : 'text-danger',
-                    changeValue: percentChange
+                    changeValue: percentChange,
+                    dailyChangeValue: percentChange * 0.8,
+                    profitLoss: totalValue - totalInvested
                 });
                 
                 mockWalletData.wallet.totalBalance += totalValue;

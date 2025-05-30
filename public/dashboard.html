@@ -333,73 +333,25 @@
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
             backdrop-filter: blur(10px);
         }
-
-        .wallet-stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-top: 1rem;
-        }
-
-        .wallet-stat-card {
-            background: rgba(15, 23, 42, 0.6);
-            padding: 1rem;
+        
+        .holdings-header {
+            background: rgba(30, 41, 59, 0.3);
+            padding: 0.75rem 1rem;
             border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            text-align: center;
-        }
-
-        .wallet-stat-card h4 {
-            font-size: 0.9rem;
-            color: #94a3b8;
-            margin-bottom: 0.5rem;
-        }
-
-        .wallet-stat-card .value {
-            font-size: 1.5rem;
-            font-weight: 600;
-            background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .price-chart-container {
-            background: rgba(15, 23, 42, 0.6);
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin: 1.5rem;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-        }
-
-        .chart-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
             margin-bottom: 1rem;
         }
-
-        .chart-controls {
-            display: flex;
-            gap: 0.5rem;
-        }
-
-        .time-filter {
-            padding: 0.4rem 0.8rem;
+        
+        .holdings-filter select {
             background: rgba(30, 41, 59, 0.5);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 6px;
-            color: #94a3b8;
-            cursor: pointer;
-            transition: all 0.3s ease;
+            color: var(--light-color);
+            font-size: 0.85rem;
+            padding: 0.25rem 0.75rem;
         }
-
-        .time-filter:hover,
-        .time-filter.active {
-            background: rgba(58, 123, 213, 0.3);
-            color: var(--secondary-color);
-            border-color: var(--secondary-color);
+        
+        .holdings-filter select:focus {
+            box-shadow: 0 0 0 0.25rem rgba(0, 210, 255, 0.25);
+            border-color: rgba(0, 210, 255, 0.5);
         }
         
         .bg-gradient-primary {
@@ -897,13 +849,28 @@
             </div>
             <div class="tab-content" id="walletTabContent">
                 <div class="tab-pane fade show active holdings-pane" id="holdings" role="tabpanel" aria-labelledby="holdings-tab">
+                    <div class="holdings-header d-flex justify-content-between align-items-center mb-3 px-2">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-chart-pie me-2 text-primary"></i>
+                            <h6 class="mb-0">Your Assets</h6>
+                        </div>
+                        <div class="holdings-filter">
+                            <select class="form-select form-select-sm" id="holdingsSortSelect">
+                                <option value="value-desc">Highest Value</option>
+                                <option value="value-asc">Lowest Value</option>
+                                <option value="change-desc">Best Performance</option>
+                                <option value="change-asc">Worst Performance</option>
+                            </select>
+                        </div>
+                    </div>
                     <table class="table table-hover align-middle">
                         <thead>
                             <tr>
                                 <th>Asset</th>
                                 <th>Quantity</th>
                                 <th>Value</th>
-                                <th>Change</th>
+                                <th>24h</th>
+                                <th>Total Change</th>
                             </tr>
                         </thead>
                         <tbody id="walletTableBody" class="dark-table-body">
@@ -1234,27 +1201,38 @@
             walletTableBody.innerHTML = "";
 
             if (holdings.length === 0) {
-                walletTableBody.innerHTML = `<tr><td colspan="4" class="text-center">No assets found in your wallet. Try buying some coins!</td></tr>`;
+                walletTableBody.innerHTML = `<tr><td colspan="5" class="text-center">No assets found in your wallet. Try buying some coins!</td></tr>`;
             } else {
+                // Sort holdings by value (highest first by default)
+                holdings.sort((a, b) => parseFloat(b.totalPrice) - parseFloat(a.totalPrice));
+                
                 holdings.forEach((item) => {
                     const row = document.createElement("tr");
+                    row.setAttribute('data-value', parseFloat(item.totalPrice));
+                    row.setAttribute('data-change', parseFloat(item.changeValue));
                     
-                    // Properly extract and parse the change value
-                    let changeValue;
-                    if (typeof item.change === 'string') {
-                        // Remove any + sign and % symbol before parsing
-                        changeValue = parseFloat(item.change.replace(/[+%]/g, ''));
-                    } else {
-                        changeValue = parseFloat(item.change) || 0;
-                    }
+                    // Properly extract and parse the change values
+                    let totalChangeValue = parseFloat(item.changeValue) || 0;
+                    let dailyChangeValue = parseFloat(item.dailyChangeValue) || 0;
                     
-                    // Determine color class based on change value
-                    const changeColorClass = changeValue >= 0 ? 'text-success' : 'text-danger';
+                    // Determine color classes based on change values
+                    const totalChangeColorClass = totalChangeValue >= 0 ? 'text-success' : 'text-danger';
+                    const dailyChangeColorClass = dailyChangeValue >= 0 ? 'text-success' : 'text-danger';
                     
-                    // Format the change value with + or - sign
-                    const changeDisplay = changeValue >= 0 
-                        ? `+${changeValue.toFixed(2)}%` 
-                        : `${changeValue.toFixed(2)}%`;
+                    // Format the change values with + or - sign
+                    const totalChangeDisplay = item.change || (totalChangeValue >= 0 
+                        ? `+${totalChangeValue.toFixed(2)}%` 
+                        : `${totalChangeValue.toFixed(2)}%`);
+                        
+                    const dailyChangeDisplay = item.dailyChange || (dailyChangeValue >= 0 
+                        ? `+${dailyChangeValue.toFixed(2)}%` 
+                        : `${dailyChangeValue.toFixed(2)}%`);
+                    
+                    // Calculate profit/loss amount
+                    const profitLossAmount = item.profitLoss || 0;
+                    const profitLossDisplay = profitLossAmount >= 0 
+                        ? `+$${profitLossAmount.toFixed(2)}` 
+                        : `-$${Math.abs(profitLossAmount).toFixed(2)}`;
                     
                     row.innerHTML = `
                         <td>
@@ -1268,12 +1246,59 @@
                                 </div>
                             </div>
                         </td>
-                        <td>${item.quantity}</td>
-                        <td>$${parseFloat(item.totalPrice).toFixed(2)}</td>
-                        <td class="${changeColorClass}">${changeDisplay}</td>
+                        <td>
+                            <div>${item.quantity}</div>
+                            <small class="text-muted">$${parseFloat(item.currentPrice).toFixed(2)}</small>
+                        </td>
+                        <td>
+                            <div class="fw-bold">$${parseFloat(item.totalPrice).toFixed(2)}</div>
+                        </td>
+                        <td class="${dailyChangeColorClass}">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-${dailyChangeValue >= 0 ? 'caret-up' : 'caret-down'} me-1"></i>
+                                ${dailyChangeDisplay}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="${totalChangeColorClass} d-flex align-items-center">
+                                <i class="fas fa-${totalChangeValue >= 0 ? 'caret-up' : 'caret-down'} me-1"></i>
+                                ${totalChangeDisplay}
+                            </div>
+                            <small class="${totalChangeColorClass}">${profitLossDisplay}</small>
+                        </td>
                     `;
                     
                     walletTableBody.appendChild(row);
+                });
+                
+                // Add event listener for sorting
+                document.getElementById('holdingsSortSelect').addEventListener('change', function() {
+                    const sortValue = this.value;
+                    const rows = Array.from(walletTableBody.querySelectorAll('tr'));
+                    
+                    // Skip if there's only the empty message row
+                    if (rows.length <= 1 && rows[0].cells.length === 1) return;
+                    
+                    rows.sort((a, b) => {
+                        if (sortValue === 'value-desc') {
+                            return parseFloat(b.getAttribute('data-value')) - parseFloat(a.getAttribute('data-value'));
+                        } else if (sortValue === 'value-asc') {
+                            return parseFloat(a.getAttribute('data-value')) - parseFloat(b.getAttribute('data-value'));
+                        } else if (sortValue === 'change-desc') {
+                            return parseFloat(b.getAttribute('data-change')) - parseFloat(a.getAttribute('data-change'));
+                        } else if (sortValue === 'change-asc') {
+                            return parseFloat(a.getAttribute('data-change')) - parseFloat(b.getAttribute('data-change'));
+                        }
+                        return 0;
+                    });
+                    
+                    // Remove all rows
+                    while (walletTableBody.firstChild) {
+                        walletTableBody.removeChild(walletTableBody.firstChild);
+                    }
+                    
+                    // Add sorted rows
+                    rows.forEach(row => walletTableBody.appendChild(row));
                 });
             }
             
@@ -1369,21 +1394,68 @@
             // Show total wallet summary at the top with more details
             const walletSummary = document.querySelector('.wallet-balance-summary');
             
-            // Create wallet summary content
+            // Calculate overall portfolio performance
+            let totalInvested = 0;
+            let totalProfitLoss = 0;
+            let totalPercentChange = 0;
+            
+            holdings.forEach(item => {
+                if (item.profitLoss) {
+                    totalProfitLoss += parseFloat(item.profitLoss);
+                }
+                // Calculate approximate total invested based on current value minus profit/loss
+                const invested = parseFloat(item.totalPrice) - (item.profitLoss || 0);
+                totalInvested += invested;
+            });
+            
+            // Calculate overall percent change
+            if (totalInvested > 0) {
+                totalPercentChange = (totalProfitLoss / totalInvested) * 100;
+            }
+            
+            // Create wallet summary content with enhanced visualization
             if (totalBalance > 0 || userTransactions.length > 0) {
                 walletSummary.innerHTML = `
-                    <h4 class="mb-3">Wallet Summary</h4>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>Total Balance:</span>
-                        <span class="fw-bold" id="walletTotalBalance">$${totalBalance.toFixed(2)}</span>
-                    </div>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>Total Assets:</span>
-                        <span>${holdings.length}</span>
-                    </div>
-                    <div class="d-flex justify-content-between">
-                        <span>Total Transactions:</span>
-                        <span>${userTransactions.length}</span>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h4 class="mb-3">Portfolio Summary</h4>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Total Balance:</span>
+                                <span class="fw-bold" id="walletTotalBalance">$${totalBalance.toFixed(2)}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Total Assets:</span>
+                                <span>${holdings.length}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Total Transactions:</span>
+                                <span>${userTransactions.length}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h4 class="mb-3">Performance</h4>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Total P/L:</span>
+                                <span class="fw-bold ${totalProfitLoss >= 0 ? 'text-success' : 'text-danger'}">
+                                    ${totalProfitLoss >= 0 ? '+' : ''}$${totalProfitLoss.toFixed(2)}
+                                </span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Overall Change:</span>
+                                <span class="${totalPercentChange >= 0 ? 'text-success' : 'text-danger'}">
+                                    <i class="fas fa-${totalPercentChange >= 0 ? 'caret-up' : 'caret-down'} me-1"></i>
+                                    ${totalPercentChange >= 0 ? '+' : ''}${totalPercentChange.toFixed(2)}%
+                                </span>
+                            </div>
+                            <div class="progress mt-2" style="height: 8px;">
+                                <div class="progress-bar ${totalPercentChange >= 0 ? 'bg-success' : 'bg-danger'}" 
+                                     role="progressbar" 
+                                     style="width: ${Math.min(Math.abs(totalPercentChange), 100)}%;" 
+                                     aria-valuenow="${Math.abs(totalPercentChange)}" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100"></div>
+                            </div>
+                        </div>
                     </div>
                 `;
             } else {
@@ -1405,37 +1477,10 @@
             
             const walletSummary = document.querySelector('.wallet-balance-summary');
             walletSummary.innerHTML = `
-                <div class="wallet-stats-grid">
-                    <div class="wallet-stat-card">
-                        <h4>Total Balance</h4>
-                        <div class="value">$0.00</div>
-                    </div>
-                    <div class="wallet-stat-card">
-                        <h4>24h Change</h4>
-                        <div class="value text-danger">0.00%</div>
-                    </div>
-                    <div class="wallet-stat-card">
-                        <h4>Portfolio Value</h4>
-                        <div class="value">$0.00</div>
-                    </div>
-                    <div class="wallet-stat-card">
-                        <h4>Total Profit/Loss</h4>
-                        <div class="value text-danger">$0.00</div>
-                    </div>
-                </div>
-                <div class="price-chart-container mt-4">
-                    <div class="chart-header">
-                        <h4 class="mb-0">Portfolio Performance</h4>
-                        <div class="chart-controls">
-                            <button class="time-filter active">24H</button>
-                            <button class="time-filter">7D</button>
-                            <button class="time-filter">1M</button>
-                            <button class="time-filter">3M</button>
-                            <button class="time-filter">1Y</button>
-                            <button class="time-filter">ALL</button>
-                        </div>
-                    </div>
-                    <canvas id="portfolioChart" height="250"></canvas>
+                <div class="text-center py-3">
+                    <i class="fas fa-exclamation-triangle fa-3x mb-3 text-warning"></i>
+                    <h4>Error Loading Wallet</h4>
+                    <p class="text-muted mb-0">Please try again later</p>
                 </div>
             `;
         }
@@ -1463,101 +1508,6 @@ function redirectToLogin() {
             logout();
         });
 
-    // Initialize portfolio chart
-    function initPortfolioChart() {
-        const ctx = document.getElementById('portfolioChart').getContext('2d');
-        const gradient = ctx.createLinearGradient(0, 0, 0, 250);
-        gradient.addColorStop(0, 'rgba(0, 210, 255, 0.2)');
-        gradient.addColorStop(1, 'rgba(0, 210, 255, 0)');
-
-        return new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: Array.from({length: 24}, (_, i) => `${i}:00`),
-                datasets: [{
-                    label: 'Portfolio Value',
-                    data: Array.from({length: 24}, () => Math.random() * 10000 + 5000),
-                    borderColor: '#00d2ff',
-                    borderWidth: 2,
-                    fill: true,
-                    backgroundColor: gradient,
-                    tension: 0.4,
-                    pointRadius: 0,
-                    pointHoverRadius: 4,
-                    pointHoverBackgroundColor: '#00d2ff',
-                    pointHoverBorderColor: '#fff'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false,
-                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                        titleColor: '#fff',
-                        bodyColor: '#94a3b8',
-                        borderColor: 'rgba(255, 255, 255, 0.1)',
-                        borderWidth: 1,
-                        padding: 10,
-                        displayColors: false
-                    }
-                },
-                scales: {
-                    x: {
-                        grid: {
-                            display: false
-                        },
-                        ticks: {
-                            color: '#94a3b8',
-                            maxRotation: 0
-                        }
-                    },
-                    y: {
-                        grid: {
-                            color: 'rgba(255, 255, 255, 0.05)'
-                        },
-                        ticks: {
-                            color: '#94a3b8',
-                            callback: value => `$${value.toLocaleString()}`
-                        }
-                    }
-                },
-                interaction: {
-                    intersect: false,
-                    mode: 'index'
-                }
-            }
-        });
-    }
-
-    // Handle time filter clicks
-    function handleTimeFilter(e) {
-        if (e.target.classList.contains('time-filter')) {
-            document.querySelectorAll('.time-filter').forEach(btn => btn.classList.remove('active'));
-            e.target.classList.add('active');
-            // Update chart data based on selected time period
-            updateChartData(e.target.textContent);
-        }
-    }
-
-    function updateChartData(period) {
-        // Simulate data update based on selected time period
-        const dataPoints = period === '24H' ? 24 : period === '7D' ? 7 : period === '1M' ? 30 : period === '3M' ? 90 : 365;
-        const newData = Array.from({length: dataPoints}, () => Math.random() * 10000 + 5000);
-        portfolioChart.data.labels = Array.from({length: dataPoints}, (_, i) => 
-            period === '24H' ? `${i}:00` : `Day ${i + 1}`
-        );
-        portfolioChart.data.datasets[0].data = newData;
-        portfolioChart.update();
-    }
-
-    let portfolioChart;
-
     document.getElementById("walletButton").addEventListener("click", () => {
         document.getElementById("walletModal").style.display = "flex";
         // Reset to the holdings tab whenever the wallet is opened
@@ -1575,11 +1525,6 @@ function redirectToLogin() {
         transactionsPane.classList.remove('show', 'active');
         
         fetchWallet();
-        // Initialize chart if not already initialized
-        if (!portfolioChart) {
-            portfolioChart = initPortfolioChart();
-            document.querySelector('.chart-controls').addEventListener('click', handleTimeFilter);
-        }
     });
 
     document.getElementById("closeWallet").addEventListener("click", () => {
