@@ -14,10 +14,6 @@
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     <!-- Migration CSS -->
     <link href="css/migration.css" rel="stylesheet">
-    <!-- Bootstrap Bundle with Popper -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- AOS Animation Library -->
-    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <!-- CORS Helper Script -->
     <script src="js/cors-helper.js"></script>
     <style>
@@ -644,13 +640,9 @@
             <p class="mb-0">Welcome, <span id="userName">User</span></p>
         </div>
         <div class="header-actions">
-            <button id="assetsButton" class="btn btn-primary me-2" data-bs-toggle="tab" data-bs-target="#assets-tab">
-                <i class="fas fa-chart-pie"></i>
-                My Assets
-            </button>
-            <button id="transactionsButton" class="btn btn-primary" data-bs-toggle="tab" data-bs-target="#transactions-tab">
-                <i class="fas fa-exchange-alt"></i>
-                Transactions
+            <button id="walletButton" class="btn btn-primary">
+                <i class="fas fa-wallet"></i>
+                <span>My Wallet</span>
             </button>
             <button id="logoutButton" class="btn btn-danger">
                 <i class="fas fa-sign-out-alt"></i>
@@ -832,68 +824,70 @@
     <!-- Professional Wallet Modal -->
     <div id="walletModal" class="wallet-modal">
         <div class="wallet-content" data-aos="zoom-in" data-aos-duration="500">
-            <div class="container mt-4">
-                <div class="tab-content" id="main-content">
-                    <!-- Assets Tab -->
-                    <div class="tab-pane fade show active" id="assets-tab" role="tabpanel">
-                        <div class="card bg-dark">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <h4 class="mb-0"><i class="fas fa-chart-pie me-2"></i>My Assets</h4>
-                                <div class="total-value">Total Value: <span id="total-assets-value">$0.00</span></div>
-                            </div>
-                            <div class="card-body">
-                                <div class="table-responsive">
-                                    <table class="table">
-                                        <thead>
-                                            <tr>
-                                                <th>Coin</th>
-                                                <th>Amount</th>
-                                                <th>Value (USD)</th>
-                                                <th>Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="holdings-table-body">
-                                            <!-- Holdings will be populated here -->
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
+            <div class="wallet-header d-flex justify-content-between align-items-center">
+                <h3><i class="fas fa-wallet me-2"></i>Professional Wallet</h3>
+                <div class="close-icon" id="closeWallet">
+                    <i class="fas fa-times"></i>
+                </div>
+            </div>
+            <div class="wallet-balance-summary mb-4">
+                <!-- Content will be dynamically generated -->
+            </div>
+            <div class="wallet-tabs mb-3">
+                <ul class="nav nav-pills nav-fill mb-3" id="walletTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="holdings-tab" data-bs-toggle="pill" data-bs-target="#holdings" type="button" role="tab" aria-controls="holdings" aria-selected="true">
+                            <i class="fas fa-coins me-2"></i>Holdings
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="transactions-tab" data-bs-toggle="pill" data-bs-target="#transactions" type="button" role="tab" aria-controls="transactions" aria-selected="false">
+                            <i class="fas fa-exchange-alt me-2"></i>Transactions
+                        </button>
+                    </li>
+                </ul>
+            </div>
+            <div class="tab-content" id="walletTabContent">
+                <div class="tab-pane fade show active holdings-pane" id="holdings" role="tabpanel" aria-labelledby="holdings-tab">
+                    <div class="holdings-header d-flex justify-content-between align-items-center mb-3 px-2">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-chart-pie me-2 text-primary"></i>
+                            <h6 class="mb-0">Your Assets</h6>
+                        </div>
+                        <div class="holdings-filter">
+                            <select class="form-select form-select-sm" id="holdingsSortSelect">
+                                <option value="value-desc">Highest Value</option>
+                                <option value="value-asc">Lowest Value</option>
+                                <option value="change-desc">Best Performance</option>
+                                <option value="change-asc">Worst Performance</option>
+                            </select>
                         </div>
                     </div>
-
-                    <!-- Transactions Tab -->
-                    <div class="tab-pane fade" id="transactions-tab" role="tabpanel">
-                        <div class="card bg-dark">
-                            <div class="card-header">
-                                <h4 class="mb-0"><i class="fas fa-exchange-alt me-2"></i>Transaction History</h4>
-                            </div>
-                            <div class="card-body">
-                                <div class="table-responsive">
-                                    <table class="table">
-                                        <thead>
-                                            <tr>
-                                                <th>Date</th>
-                                                <th>Type</th>
-                                                <th>Coin</th>
-                                                <th>Amount</th>
-                                                <th>Value (USD)</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="transactions-table-body">
-                                            <!-- Transactions will be populated here -->
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>Asset</th>
+                                <th>Quantity</th>
+                                <th>Value</th>
+                                <th>24h</th>
+                                <th>Total Change</th>
+                            </tr>
+                        </thead>
+                        <tbody id="walletTableBody" class="dark-table-body">
+                            <!-- Wallet data will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="tab-pane fade" id="transactions" role="tabpanel" aria-labelledby="transactions-tab">
+                    <div class="transaction-history" id="transactionHistory">
+                        <!-- Transaction history will be loaded dynamically -->
                     </div>
                 </div>
             </div>
-        </div>
-        <div class="d-flex justify-content-end mt-4">
-            <button class="btn btn-primary px-4 py-2" id="closeWalletButton">
-                <i class="fas fa-check-circle me-2"></i>Done
-            </button>
+            <div class="d-flex justify-content-end mt-4">
+                <button class="btn btn-primary px-4 py-2" id="closeWalletButton">
+                    <i class="fas fa-check-circle me-2"></i>Done
+                </button>
             </div>
         </div>
     </div>
@@ -1172,25 +1166,16 @@
     }
 
     async function fetchWallet() {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            alert("Please log in to view your wallet.");
+            window.location.href = "login.html";
+            return;
+        }
+
         try {
-            const token = localStorage.getItem('token');
-            if (!token) {
-                alert('Please log in to view your wallet.');
-                window.location.href = 'login.html';
-                return;
-            }
-
-            // Ensure necessary DOM elements exist before proceeding
-            const assetsTab = document.getElementById('assets-tab');
-            const transactionsTab = document.getElementById('transactions-tab');
-            const walletTableBody = document.getElementById('walletTableBody');
-            
-            if (!assetsTab || !transactionsTab || !walletTableBody) {
-                console.error('Required DOM elements not found');
-                return;
-            }
-
             // Show loading state
+            const walletTableBody = document.getElementById("walletTableBody");
             walletTableBody.innerHTML = `
                 <tr>
                     <td colspan="4" class="text-center">
@@ -1216,7 +1201,7 @@
             walletTableBody.innerHTML = "";
 
             if (holdings.length === 0) {
-                walletTableBody.innerHTML = `<tr><td colspan="4" class="text-center">No assets found in your wallet. Try buying some coins!</td></tr>`;
+                walletTableBody.innerHTML = `<tr><td colspan="5" class="text-center">No assets found in your wallet. Try buying some coins!</td></tr>`;
             } else {
                 // Sort holdings by value (highest first by default)
                 holdings.sort((a, b) => parseFloat(b.totalPrice) - parseFloat(a.totalPrice));
@@ -1225,30 +1210,30 @@
                     const row = document.createElement("tr");
                     row.setAttribute('data-value', parseFloat(item.totalPrice));
                     row.setAttribute('data-change', parseFloat(item.changeValue));
-                
+                    
                     // Properly extract and parse the change values
                     let totalChangeValue = parseFloat(item.changeValue) || 0;
                     let dailyChangeValue = parseFloat(item.dailyChangeValue) || 0;
-                
+                    
                     // Determine color classes based on change values
                     const totalChangeColorClass = totalChangeValue >= 0 ? 'text-success' : 'text-danger';
                     const dailyChangeColorClass = dailyChangeValue >= 0 ? 'text-success' : 'text-danger';
-                
+                    
                     // Format the change values with + or - sign
                     const totalChangeDisplay = item.change || (totalChangeValue >= 0 
                         ? `+${totalChangeValue.toFixed(2)}%` 
                         : `${totalChangeValue.toFixed(2)}%`);
-                    
+                        
                     const dailyChangeDisplay = item.dailyChange || (dailyChangeValue >= 0 
                         ? `+${dailyChangeValue.toFixed(2)}%` 
                         : `${dailyChangeValue.toFixed(2)}%`);
-                
+                    
                     // Calculate profit/loss amount
                     const profitLossAmount = item.profitLoss || 0;
                     const profitLossDisplay = profitLossAmount >= 0 
                         ? `+$${profitLossAmount.toFixed(2)}` 
                         : `-$${Math.abs(profitLossAmount).toFixed(2)}`;
-                
+                    
                     row.innerHTML = `
                         <td>
                             <div class="d-flex align-items-center">
@@ -1282,129 +1267,132 @@
                             <small class="${totalChangeColorClass}">${profitLossDisplay}</small>
                         </td>
                     `;
-                
+                    
                     walletTableBody.appendChild(row);
                 });
                 
                 // Add event listener for sorting
-                const holdingsSortSelect = document.getElementById('holdingsSortSelect');
-                if (holdingsSortSelect) {
-                    holdingsSortSelect.addEventListener('change', function() {
-                        const sortValue = this.value;
-                        const rows = Array.from(walletTableBody.querySelectorAll('tr'));
+                document.getElementById('holdingsSortSelect').addEventListener('change', function() {
+                    const sortValue = this.value;
+                    const rows = Array.from(walletTableBody.querySelectorAll('tr'));
                     
-                        // Skip if there's only the empty message row
-                        if (rows.length <= 1 && rows[0].cells.length === 1) return;
-                        
-                        rows.sort((a, b) => {
-                            if (sortValue === 'value-desc') {
-                                return parseFloat(b.getAttribute('data-value')) - parseFloat(a.getAttribute('data-value'));
-                            } else if (sortValue === 'value-asc') {
-                                return parseFloat(a.getAttribute('data-value')) - parseFloat(b.getAttribute('data-value'));
-                            } else if (sortValue === 'change-desc') {
-                                return parseFloat(b.getAttribute('data-change')) - parseFloat(a.getAttribute('data-change'));
-                            } else if (sortValue === 'change-asc') {
-                                return parseFloat(a.getAttribute('data-change')) - parseFloat(b.getAttribute('data-change'));
-                            }
-                            return 0;
-                        });
+                    // Skip if there's only the empty message row
+                    if (rows.length <= 1 && rows[0].cells.length === 1) return;
                     
-                        // Remove all rows
-                        while (walletTableBody.firstChild) {
-                            walletTableBody.removeChild(walletTableBody.firstChild);
+                    rows.sort((a, b) => {
+                        if (sortValue === 'value-desc') {
+                            return parseFloat(b.getAttribute('data-value')) - parseFloat(a.getAttribute('data-value'));
+                        } else if (sortValue === 'value-asc') {
+                            return parseFloat(a.getAttribute('data-value')) - parseFloat(b.getAttribute('data-value'));
+                        } else if (sortValue === 'change-desc') {
+                            return parseFloat(b.getAttribute('data-change')) - parseFloat(a.getAttribute('data-change'));
+                        } else if (sortValue === 'change-asc') {
+                            return parseFloat(a.getAttribute('data-change')) - parseFloat(b.getAttribute('data-change'));
                         }
-                    
-                        // Add sorted rows
-                        rows.forEach(row => walletTableBody.appendChild(row));
+                        return 0;
                     });
-                }
+                    
+                    // Remove all rows
+                    while (walletTableBody.firstChild) {
+                        walletTableBody.removeChild(walletTableBody.firstChild);
+                    }
+                    
+                    // Add sorted rows
+                    rows.forEach(row => walletTableBody.appendChild(row));
+                });
             }
             
             // Update transaction history
-            const transactionHistory = document.getElementById('transactions-table-body');
-            if (transactionHistory) {
-                transactionHistory.innerHTML = '';
+            const transactionHistory = document.getElementById('transactionHistory');
+            transactionHistory.innerHTML = '';
+            
+            if (userTransactions.length === 0) {
+                transactionHistory.innerHTML = `<div class="text-center text-muted py-4">No transaction history found. Start trading to see your activity here!</div>`;
+            } else {
+                // Sort transactions by date (newest first)
+                userTransactions.sort((a, b) => {
+                    // First try to use timestamp if available
+                    if (a.timestamp && b.timestamp) {
+                        return b.timestamp - a.timestamp;
+                    }
+                    
+                    // Fall back to date objects
+                    const dateA = new Date(a.date || a.createdAt);
+                    const dateB = new Date(b.date || b.createdAt);
+                    
+                    // If dates are the same (same second), use the transaction ID or random ordering
+                    if (dateB.getTime() === dateA.getTime()) {
+                        // If we have IDs, use them for consistent ordering
+                        if (a.id && b.id) {
+                            return b.id.localeCompare(a.id);
+                        }
+                        // Otherwise, just put the newer transactions first
+                        return -1;
+                    }
+                    
+                    return dateB.getTime() - dateA.getTime();
+                });
                 
-                if (userTransactions.length === 0) {
-                    transactionHistory.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">No transaction history found. Start trading to see your activity here!</td></tr>`;
-                } else {
-                    // Sort transactions by date (newest first)
-                    userTransactions.sort((a, b) => {
-                        // First try to use timestamp if available
-                        if (a.timestamp && b.timestamp) {
-                            return b.timestamp - a.timestamp;
-                        }
+                userTransactions.forEach(tx => {
+                    const transactionItem = document.createElement('div');
+                    transactionItem.className = 'transaction-item';
                     
-                        // Fall back to date objects
-                        const dateA = new Date(a.date || a.createdAt);
-                        const dateB = new Date(b.date || b.createdAt);
-                    
-                        // If dates are the same (same second), use the transaction ID or random ordering
-                        if (dateB.getTime() === dateA.getTime()) {
-                            // If we have IDs, use them for consistent ordering
-                            if (a.id && b.id) {
-                                return b.id.localeCompare(a.id);
-                            }
-                            // Otherwise, just put the newer transactions first
-                            return -1;
-                        }
-                    
-                        return dateB.getTime() - dateA.getTime();
+                    const isBuy = tx.type === 'Buy';
+                    const date = new Date(tx.date || tx.createdAt).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
                     });
-                
-                    userTransactions.forEach(tx => {
-                        const row = document.createElement('tr');
                     
-                        const isBuy = tx.type === 'Buy';
-                        let dateStr = new Date(tx.timestamp).toLocaleString('en-US', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                        });
+                    let coinName = tx.coin || '';
+                    let coinSymbol = tx.symbol || '';
                     
-                        let coinName = tx.coin || '';
-                        let coinSymbol = tx.symbol || '';
-                        
-                        if (tx.cryptocurrency && tx.cryptocurrency.includes('(')) {
-                            const parts = tx.cryptocurrency.split('(');
-                            coinName = parts[0].trim();
-                            coinSymbol = parts[1].replace(')', '').trim();
-                        }
+                    if (tx.cryptocurrency && tx.cryptocurrency.includes('(')) {
+                        const parts = tx.cryptocurrency.split('(');
+                        coinName = parts[0].trim();
+                        coinSymbol = parts[1].replace(')', '').trim();
+                    }
                     
-                        let amountText = '';
-                        if (tx.amount && typeof tx.amount === 'string') {
-                            amountText = tx.amount;
-                        } else if (tx.quantity) {
-                            amountText = `${tx.quantity} ${coinSymbol}`;
-                        }
+                    let amountText = '';
+                    if (tx.amount && typeof tx.amount === 'string') {
+                        amountText = tx.amount;
+                    } else if (tx.quantity) {
+                        amountText = `${tx.quantity} ${coinSymbol}`;
+                    }
                     
-                        let priceText = '';
-                        if (tx.price && typeof tx.price === 'string') {
-                            priceText = tx.price;
-                        } else if (tx.totalPrice) {
-                            priceText = `$${parseFloat(tx.totalPrice).toFixed(2)}`;
-                        }
+                    let priceText = '';
+                    if (tx.price && typeof tx.price === 'string') {
+                        priceText = tx.price;
+                    } else if (tx.totalPrice) {
+                        priceText = `$${parseFloat(tx.totalPrice).toFixed(2)}`;
+                    }
                     
-                        row.innerHTML = `
-                            <td>${date}</td>
-                            <td class="${isBuy ? 'text-success' : 'text-danger'}">
-                                <i class="fas fa-arrow-${isBuy ? 'down' : 'up'} me-1"></i>
-                                ${isBuy ? 'Buy' : 'Sell'}
-                            </td>
-                            <td>${coinName} (${coinSymbol})</td>
-                            <td>${amountText}</td>
-                            <td>${priceText}</td>
-                        `;
+                    transactionItem.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center">
+                                <div class="transaction-icon ${isBuy ? 'buy' : 'sell'}">
+                                    <i class="fas fa-arrow-${isBuy ? 'down' : 'up'}"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-0">${isBuy ? 'Bought' : 'Sold'} ${coinName}</h6>
+                                    <small class="text-light fw-bold">${date}</small>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <h6 class="mb-0">${amountText}</h6>
+                                <small class="${isBuy ? 'text-success' : 'text-danger'} fw-bold">${priceText}</small>
+                            </div>
+                        </div>
+                    `;
                     
-                        transactionHistory.appendChild(row);
-                    });
-                }
+                    transactionHistory.appendChild(transactionItem);
+                });
             }
             
             // Show total wallet summary at the top with more details
-            const walletSummary = document.querySelector('.wallet-balance-summary') || document.getElementById('total-assets-value');
+            const walletSummary = document.querySelector('.wallet-balance-summary');
             
             // Calculate overall portfolio performance
             let totalInvested = 0;
@@ -1427,102 +1415,74 @@
             
             // Create wallet summary content with enhanced visualization
             if (totalBalance > 0 || userTransactions.length > 0) {
-                if (walletSummary.tagName === 'SPAN') {
-                    // It's the total-assets-value element
-                    walletSummary.textContent = `$${totalBalance.toFixed(2)}`;
-                } else if (walletSummary) {
-                    walletSummary.innerHTML = `
-                        <div class="row">
-                            <div class="col-md-6">
-                                <h4 class="mb-3">Portfolio Summary</h4>
-                                <div class="d-flex justify-content-between mb-2">
-                                    <span>Total Balance:</span>
-                                    <span class="fw-bold" id="walletTotalBalance">$${totalBalance.toFixed(2)}</span>
-                                </div>
-                                <div class="d-flex justify-content-between mb-2">
-                                    <span>Total Assets:</span>
-                                    <span>${holdings.length}</span>
-                                </div>
-                                <div class="d-flex justify-content-between mb-2">
-                                    <span>Total Transactions:</span>
-                                    <span>${userTransactions.length}</span>
-                                </div>
+                walletSummary.innerHTML = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h4 class="mb-3">Portfolio Summary</h4>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Total Balance:</span>
+                                <span class="fw-bold" id="walletTotalBalance">$${totalBalance.toFixed(2)}</span>
                             </div>
-                            <div class="col-md-6">
-                                <h4 class="mb-3">Performance</h4>
-                                <div class="d-flex justify-content-between mb-2">
-                                    <span>Total P/L:</span>
-                                    <span class="fw-bold ${totalProfitLoss >= 0 ? 'text-success' : 'text-danger'}">
-                                        ${totalProfitLoss >= 0 ? '+' : ''}$${totalProfitLoss.toFixed(2)}
-                                    </span>
-                                </div>
-                                <div class="d-flex justify-content-between mb-2">
-                                    <span>Overall Change:</span>
-                                    <span class="${totalPercentChange >= 0 ? 'text-success' : 'text-danger'}">
-                                        <i class="fas fa-${totalPercentChange >= 0 ? 'caret-up' : 'caret-down'} me-1"></i>
-                                        ${totalPercentChange >= 0 ? '+' : ''}${totalPercentChange.toFixed(2)}%
-                                    </span>
-                                </div>
-                                <div class="progress mt-2" style="height: 8px;">
-                                    <div class="progress-bar ${totalPercentChange >= 0 ? 'bg-success' : 'bg-danger'}" 
-                                         role="progressbar" 
-                                         style="width: ${Math.min(Math.abs(totalPercentChange), 100)}%;" 
-                                         aria-valuenow="${Math.abs(totalPercentChange)}" 
-                                         aria-valuemin="0" 
-                                         aria-valuemax="100"></div>
-                                </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Total Assets:</span>
+                                <span>${holdings.length}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Total Transactions:</span>
+                                <span>${userTransactions.length}</span>
                             </div>
                         </div>
-                    `;
-                }
+                        <div class="col-md-6">
+                            <h4 class="mb-3">Performance</h4>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Total P/L:</span>
+                                <span class="fw-bold ${totalProfitLoss >= 0 ? 'text-success' : 'text-danger'}">
+                                    ${totalProfitLoss >= 0 ? '+' : ''}$${totalProfitLoss.toFixed(2)}
+                                </span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Overall Change:</span>
+                                <span class="${totalPercentChange >= 0 ? 'text-success' : 'text-danger'}">
+                                    <i class="fas fa-${totalPercentChange >= 0 ? 'caret-up' : 'caret-down'} me-1"></i>
+                                    ${totalPercentChange >= 0 ? '+' : ''}${totalPercentChange.toFixed(2)}%
+                                </span>
+                            </div>
+                            <div class="progress mt-2" style="height: 8px;">
+                                <div class="progress-bar ${totalPercentChange >= 0 ? 'bg-success' : 'bg-danger'}" 
+                                     role="progressbar" 
+                                     style="width: ${Math.min(Math.abs(totalPercentChange), 100)}%;" 
+                                     aria-valuenow="${Math.abs(totalPercentChange)}" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
             } else {
-                if (walletSummary.tagName === 'SPAN') {
-                    // It's the total-assets-value element
-                    walletSummary.textContent = '$0.00';
-                } else if (walletSummary) {
-                    walletSummary.innerHTML = `
-                        <div class="text-center py-3">
-                            <i class="fas fa-wallet fa-3x mb-3" style="color: var(--secondary-color);"></i>
-                            <h4>Your wallet is empty</h4>
-                            <p class="text-muted mb-0">Start trading to see your assets here</p>
-                        </div>
-                    `;
-                }
+                walletSummary.innerHTML = `
+                    <div class="text-center py-3">
+                        <i class="fas fa-wallet fa-3x mb-3" style="color: var(--secondary-color);"></i>
+                        <h4>Your wallet is empty</h4>
+                        <p class="text-muted mb-0">Start trading to see your assets here</p>
+                    </div>
+                `;
             }
         } catch (error) {
             console.error("Error fetching wallet:", error);
-            const walletTableBody = document.getElementById("holdings-table-body");
-            if (walletTableBody) {
-                walletTableBody.innerHTML = `
-                    <tr><td colspan="4" class="text-center text-danger">
-                        An error occurred while fetching wallet details. Please try again later.
-                    </td></tr>
-                `;
-            }
+            document.getElementById("walletTableBody").innerHTML = `
+                <tr><td colspan="4" class="text-center text-danger">
+                    An error occurred while fetching wallet details. Please try again later.
+                </td></tr>
+            `;
             
-            const transactionsTableBody = document.getElementById("transactions-table-body");
-            if (transactionsTableBody) {
-                transactionsTableBody.innerHTML = `
-                    <tr><td colspan="5" class="text-center text-danger">
-                        An error occurred while fetching transaction details. Please try again later.
-                    </td></tr>
-                `;
-            }
-            
-            const walletSummary = document.querySelector('.wallet-balance-summary') || document.getElementById('total-assets-value');
-            if (walletSummary) {
-                if (walletSummary.tagName === 'SPAN') {
-                    walletSummary.textContent = '$0.00';
-                } else {
-                    walletSummary.innerHTML = `
-                        <div class="text-center py-3">
-                            <i class="fas fa-exclamation-triangle fa-3x mb-3 text-warning"></i>
-                            <h4>Error Loading Wallet</h4>
-                            <p class="text-muted mb-0">Please try again later</p>
-                        </div>
-                    `;
-                }
-            }
+            const walletSummary = document.querySelector('.wallet-balance-summary');
+            walletSummary.innerHTML = `
+                <div class="text-center py-3">
+                    <i class="fas fa-exclamation-triangle fa-3x mb-3 text-warning"></i>
+                    <h4>Error Loading Wallet</h4>
+                    <p class="text-muted mb-0">Please try again later</p>
+                </div>
+            `;
         }
     }
 
@@ -1548,54 +1508,45 @@ function redirectToLogin() {
             logout();
         });
 
-    // Initialize Bootstrap tabs properly
-    document.addEventListener('DOMContentLoaded', function() {
-        const tabElements = document.querySelectorAll('[data-bs-toggle="tab"]');
-        tabElements.forEach(tab => {
-            tab.addEventListener('shown.bs.tab', function (event) {
-                if (event.target.id === 'assetsButton' || event.target.id === 'transactionsButton') {
-                    fetchWallet();
-                }
-            });
-        });
-
-        // Initialize the tabs using Bootstrap's Tab API
-        const tabs = document.querySelectorAll('.nav-link');
-        tabs.forEach(tab => {
-            new bootstrap.Tab(tab);
-        });
-
-        // Set initial active tab
-        const activeTab = new bootstrap.Tab(document.querySelector('#assetsButton'));
-        activeTab.show();
+    document.getElementById("walletButton").addEventListener("click", () => {
+        document.getElementById("walletModal").style.display = "flex";
+        // Reset to the holdings tab whenever the wallet is opened
+        const holdingsTab = document.getElementById('holdings-tab');
+        const transactionsTab = document.getElementById('transactions-tab');
+        const holdingsPane = document.getElementById('holdings');
+        const transactionsPane = document.getElementById('transactions');
+        
+        // Activate holdings tab
+        holdingsTab.classList.add('active');
+        holdingsPane.classList.add('show', 'active');
+        
+        // Deactivate transactions tab
+        transactionsTab.classList.remove('active');
+        transactionsPane.classList.remove('show', 'active');
+        
+        fetchWallet();
     });
 
+    document.getElementById("closeWallet").addEventListener("click", () => {
+        document.getElementById("walletModal").style.display = "none";
+    });
 
+    document.getElementById("closeWalletButton").addEventListener("click", () => {
+        document.getElementById("walletModal").style.display = "none";
+    });
+    
+    fetchUserDetails();
+    
+    // Initialize AOS
+    AOS.init({
+        duration: 800,
+        easing: 'ease-in-out',
+        once: true
+    });
     
     // Add background-clip standard property for compatibility
     document.addEventListener('DOMContentLoaded', function() {
-        // Initialize CorsHelper
-        CorsHelper.init();
-
-        // Initialize Bootstrap components
-        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl);
-        });
-
-        const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
-        popoverTriggerList.map(function (popoverTriggerEl) {
-            return new bootstrap.Popover(popoverTriggerEl);
-        });
-
-        // Initialize AOS animations
-        AOS.init({
-            duration: 800,
-            easing: 'ease-in-out',
-            once: true
-        });
-
-        // Add CSS compatibility fixes
+        // Create a style element instead of trying to modify existing stylesheets
         const style = document.createElement('style');
         style.textContent = `
             header h1,
@@ -1605,17 +1556,8 @@ function redirectToLogin() {
             }
         `;
         document.head.appendChild(style);
-
-        // Initial data load
-        fetchWallet();
-        fetchUserDetails();
-        fetchLivePrices();
-
-        // Set up live price refresh interval
-        const priceRefreshInterval = setInterval(fetchLivePrices, 30000);
-        window.addEventListener('beforeunload', () => {
-            clearInterval(priceRefreshInterval);
-        });
+        
+        // Add Font Awesome litecoin-sign icon if it doesn't exist
         if (!document.querySelector('.fa-litecoin-sign')) {
             const style = document.createElement('style');
             style.innerHTML = `
