@@ -640,9 +640,13 @@
             <p class="mb-0">Welcome, <span id="userName">User</span></p>
         </div>
         <div class="header-actions">
-            <button id="walletButton" class="btn btn-primary">
-                <i class="fas fa-wallet"></i>
-                <span>My Wallet</span>
+            <button id="assetsButton" class="btn btn-primary me-2" data-bs-toggle="tab" data-bs-target="#assets-tab">
+                <i class="fas fa-chart-pie"></i>
+                My Assets
+            </button>
+            <button id="transactionsButton" class="btn btn-primary" data-bs-toggle="tab" data-bs-target="#transactions-tab">
+                <i class="fas fa-exchange-alt"></i>
+                Transactions
             </button>
             <button id="logoutButton" class="btn btn-danger">
                 <i class="fas fa-sign-out-alt"></i>
@@ -824,70 +828,68 @@
     <!-- Professional Wallet Modal -->
     <div id="walletModal" class="wallet-modal">
         <div class="wallet-content" data-aos="zoom-in" data-aos-duration="500">
-            <div class="wallet-header d-flex justify-content-between align-items-center">
-                <h3><i class="fas fa-wallet me-2"></i>Professional Wallet</h3>
-                <div class="close-icon" id="closeWallet">
-                    <i class="fas fa-times"></i>
-                </div>
-            </div>
-            <div class="wallet-balance-summary mb-4">
-                <!-- Content will be dynamically generated -->
-            </div>
-            <div class="wallet-tabs mb-3">
-                <ul class="nav nav-pills nav-fill mb-3" id="walletTabs" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="holdings-tab" data-bs-toggle="pill" data-bs-target="#holdings" type="button" role="tab" aria-controls="holdings" aria-selected="true">
-                            <i class="fas fa-coins me-2"></i>Holdings
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="transactions-tab" data-bs-toggle="pill" data-bs-target="#transactions" type="button" role="tab" aria-controls="transactions" aria-selected="false">
-                            <i class="fas fa-exchange-alt me-2"></i>Transactions
-                        </button>
-                    </li>
-                </ul>
-            </div>
-            <div class="tab-content" id="walletTabContent">
-                <div class="tab-pane fade show active holdings-pane" id="holdings" role="tabpanel" aria-labelledby="holdings-tab">
-                    <div class="holdings-header d-flex justify-content-between align-items-center mb-3 px-2">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-chart-pie me-2 text-primary"></i>
-                            <h6 class="mb-0">Your Assets</h6>
-                        </div>
-                        <div class="holdings-filter">
-                            <select class="form-select form-select-sm" id="holdingsSortSelect">
-                                <option value="value-desc">Highest Value</option>
-                                <option value="value-asc">Lowest Value</option>
-                                <option value="change-desc">Best Performance</option>
-                                <option value="change-asc">Worst Performance</option>
-                            </select>
+            <div class="container mt-4">
+                <div class="tab-content" id="main-content">
+                    <!-- Assets Tab -->
+                    <div class="tab-pane fade show active" id="assets-tab" role="tabpanel">
+                        <div class="card bg-dark">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h4 class="mb-0"><i class="fas fa-chart-pie me-2"></i>My Assets</h4>
+                                <div class="total-value">Total Value: <span id="total-assets-value">$0.00</span></div>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Coin</th>
+                                                <th>Amount</th>
+                                                <th>Value (USD)</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="holdings-table-body">
+                                            <!-- Holdings will be populated here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <table class="table table-hover align-middle">
-                        <thead>
-                            <tr>
-                                <th>Asset</th>
-                                <th>Quantity</th>
-                                <th>Value</th>
-                                <th>24h</th>
-                                <th>Total Change</th>
-                            </tr>
-                        </thead>
-                        <tbody id="walletTableBody" class="dark-table-body">
-                            <!-- Wallet data will be inserted here -->
-                        </tbody>
-                    </table>
-                </div>
-                <div class="tab-pane fade" id="transactions" role="tabpanel" aria-labelledby="transactions-tab">
-                    <div class="transaction-history" id="transactionHistory">
-                        <!-- Transaction history will be loaded dynamically -->
+
+                    <!-- Transactions Tab -->
+                    <div class="tab-pane fade" id="transactions-tab" role="tabpanel">
+                        <div class="card bg-dark">
+                            <div class="card-header">
+                                <h4 class="mb-0"><i class="fas fa-exchange-alt me-2"></i>Transaction History</h4>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Type</th>
+                                                <th>Coin</th>
+                                                <th>Amount</th>
+                                                <th>Value (USD)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="transactions-table-body">
+                                            <!-- Transactions will be populated here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="d-flex justify-content-end mt-4">
-                <button class="btn btn-primary px-4 py-2" id="closeWalletButton">
-                    <i class="fas fa-check-circle me-2"></i>Done
-                </button>
+        </div>
+        <div class="d-flex justify-content-end mt-4">
+            <button class="btn btn-primary px-4 py-2" id="closeWalletButton">
+                <i class="fas fa-check-circle me-2"></i>Done
+            </button>
             </div>
         </div>
     </div>
@@ -1508,32 +1510,21 @@ function redirectToLogin() {
             logout();
         });
 
-    document.getElementById("walletButton").addEventListener("click", () => {
-        document.getElementById("walletModal").style.display = "flex";
-        // Reset to the holdings tab whenever the wallet is opened
-        const holdingsTab = document.getElementById('holdings-tab');
-        const transactionsTab = document.getElementById('transactions-tab');
-        const holdingsPane = document.getElementById('holdings');
-        const transactionsPane = document.getElementById('transactions');
-        
-        // Activate holdings tab
-        holdingsTab.classList.add('active');
-        holdingsPane.classList.add('show', 'active');
-        
-        // Deactivate transactions tab
-        transactionsTab.classList.remove('active');
-        transactionsPane.classList.remove('show', 'active');
-        
-        fetchWallet();
+    // Handle Assets and Transactions tab switching
+    document.getElementById("assetsButton").addEventListener("click", () => {
+        document.getElementById("assets-tab").classList.add("show", "active");
+        document.getElementById("transactions-tab").classList.remove("show", "active");
+        fetchWallet(); // This will update the assets view
     });
 
-    document.getElementById("closeWallet").addEventListener("click", () => {
-        document.getElementById("walletModal").style.display = "none";
+    document.getElementById("transactionsButton").addEventListener("click", () => {
+        document.getElementById("transactions-tab").classList.add("show", "active");
+        document.getElementById("assets-tab").classList.remove("show", "active");
+        fetchWallet(); // This will update the transactions view
     });
 
-    document.getElementById("closeWalletButton").addEventListener("click", () => {
-        document.getElementById("walletModal").style.display = "none";
-    });
+    // Initial load of assets
+    fetchWallet();
     
     fetchUserDetails();
     
