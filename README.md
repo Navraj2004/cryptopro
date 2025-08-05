@@ -42,9 +42,4 @@ If you are an existing user, please see the [Migration Guide](MIGRATION_GUIDE.md
 2. Open index.html in your browser to view the frontend locally
 3. Backend API is already deployed at [https://cryptopro.onrender.com](https://cryptopro.onrender.com)
 
-## Contact
 
-**Owner:** Shreyas Gowda  
-**Email:** shreyasgowda1901@gmail.com  
-**Phone:** +91 6361943681  
-**Address:** BMSIT&M, Avalahalli, Yelahanka, Bengaluru, Karnataka, India, 560064
